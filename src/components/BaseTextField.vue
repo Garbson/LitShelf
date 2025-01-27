@@ -4,9 +4,11 @@
     :label="label"
     clearable
     hide-details
+    :variant="variant"
     :type="type"
     :rules="rules"
     :outlined="outlined"
+    :rounded="rounded"
     :dense="dense"
     class="base-text-field"
   />
@@ -25,6 +27,10 @@ defineProps({
     type: String,
     default: 'text',
   },
+  variant: {
+    type: String,
+    default: 'outlined',
+  },
   rules: {
     type: Array,
     default: () => [],
@@ -36,6 +42,10 @@ defineProps({
   dense: {
     type: Boolean,
     default: true,
+  },
+  rounded: {
+    type: [Boolean, String],
+    default: 'lg',
   },
 })
 
