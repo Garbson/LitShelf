@@ -3,7 +3,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { db } from '../firebase'
+import { db } from '../firebase.ts'
 
 const auth = getAuth()
 

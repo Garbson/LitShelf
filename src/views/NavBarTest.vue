@@ -9,10 +9,10 @@
     <div class="navbar-menu">
       <!-- Botões de navegação -->
       <BaseButton variant="text" color="white" size="small">
-        <RouterLink to="/">Home</RouterLink>
+        <RouterLink to="/bookshelf">Home</RouterLink>
       </BaseButton>
       <BaseButton variant="text" color="white" size="small">
-        <RouterLink to="/bookshelf">Estante</RouterLink>
+        <RouterLink to="/addBook">Adiconar livro</RouterLink>
       </BaseButton>
       <BaseButton variant="text" color="white" size="small">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
@@ -30,7 +30,9 @@
             <BaseButton variant="text" @click="goToDashboard"> Dashboard </BaseButton>
           </v-list-item>
           <v-list-item>
-            <BaseButton variant="text" color="error" @click="handleLogout"> Logout </BaseButton>
+            <BaseButton variant="text" color="error" @click="handleLogout">
+              Logout
+            </BaseButton>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -39,25 +41,25 @@
 </template>
 
 <script lang="ts" setup>
-import { useAuthStore } from '@/stores/useAuthStore'
-import { useRouter } from 'vue-router'
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useRouter } from "vue-router";
 
-const authStore = useAuthStore()
-const router = useRouter()
+const authStore = useAuthStore();
+const router = useRouter();
 
 const handleLogout = async () => {
   try {
-    await authStore.logout()
-    console.log('Usuário desconectado')
-    router.push('/login')
+    await authStore.logout();
+    console.log("Usuário desconectado");
+    router.push("/login");
   } catch (error) {
-    console.error('Erro ao fazer logout:', error)
+    console.error("Erro ao fazer logout:", error);
   }
-}
+};
 
 const goToDashboard = () => {
-  router.push('/dashboard')
-}
+  router.push("/dashboard");
+};
 </script>
 
 <style scoped>
@@ -69,7 +71,7 @@ const goToDashboard = () => {
   color: white;
   padding: 0.5rem 2rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  font-family: 'Garamond', serif; /* Fonte que remete a uma biblioteca */
+  font-family: "Garamond", serif; /* Fonte que remete a uma biblioteca */
 }
 
 .navbar-logo h1 {
