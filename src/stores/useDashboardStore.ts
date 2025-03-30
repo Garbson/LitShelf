@@ -1,6 +1,8 @@
+// src/stores/useDashboardStore.ts
 import { defineStore } from "pinia";
 import { useBookshelfStore } from "./useBookshelfStore";
 import { computed, ref } from "vue";
+import { useAuthStore } from "./useAuthStore";
 
 interface Book {
   id: string;
@@ -8,13 +10,14 @@ interface Book {
   author: string;
   coverImage: string;
   quotes: string[];
-  genre?: string; // Add genre property
-  startDate?: Date; // Add start date
-  endDate?: Date; // Add end date
+  genre?: string;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export const useDashboardStore = defineStore("dashboard", () => {
   const bookshelfStore = useBookshelfStore();
+  const authStore = useAuthStore();
   const books = computed(() => bookshelfStore.books);
 
   const totalBooksRead = computed(() => {
@@ -64,6 +67,44 @@ export const useDashboardStore = defineStore("dashboard", () => {
     return books.value.filter((book) => !book.endDate);
   });
 
+  // Ranking de Leitura (Dados Fictícios por enquanto)
+  const readingRanking = computed(() => {
+    // Aqui você implementaria a lógica para obter o ranking real
+    // Por enquanto, vamos usar dados fictícios
+    return [
+      { name: authStore.user?.email || "Você", booksRead: totalBooksRead.value },
+      { name: "Amigo 1", booksRead: 12 },
+      { name: "Amigo 2", booksRead: 10 },
+      { name: "Amigo 3", booksRead: 8 },
+      { name: "Amigo 4", booksRead: 5 },
+    ];
+  });
+
+  // Visitantes da Estante (Dados Fictícios por enquanto)
+  const bookshelfVisitors = computed(() => {
+    // Aqui você implementaria a lógica para obter os visitantes reais
+    // Por enquanto, vamos usar dados fictícios
+    return ["Visitante 1", "Visitante 2", "Visitante 3"];
+  });
+
+  // Último Livro Lido
+  const lastBookRead = computed(() => {
+    const completedBooks = books.value.filter((book) => book.endDate);
+    if (completedBooks.length > 0) {
+      return completedBooks.reduce((a, b) => (a.endDate! > b.endDate! ? a : b));
+    }
+    return null;
+  });
+
+  // Última Frase Adicionada
+  const lastQuoteAdded = computed(() => {
+    const allQuotes = books.value.flatMap((book) => book.quotes);
+    if (allQuotes.length > 0) {
+      return allQuotes[allQuotes.length - 1];
+    }
+    return null;
+  });
+
   const fetchDashboardData = async () => {
     // No need to fetch data here, it's all computed from bookshelfStore.books
   };
@@ -74,6 +115,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
     genresRead,
     averageReadingTime,
     booksInProgress,
+    readingRanking,
+    bookshelfVisitors,
+    lastBookRead,
+    lastQuoteAdded,
     fetchDashboardData,
   };
 });

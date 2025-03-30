@@ -101,6 +101,7 @@ const goToBookDetails = (bookId: string) => {
 <style scoped>
 .bookshelf-container {
   width: 100%;
+  min-height: 100vh;
   background: linear-gradient(45deg, #a19f9f, #6d5e5e, #f2bd6f);
   background-size: 300% 300%;
   animation: colorAnimation 10s ease-in-out infinite;
