@@ -1,27 +1,23 @@
 <template>
   <nav class="navbar">
-    <!-- Nome do aplicativo à esquerda -->
-    <div class="navbar-logo">
-      <h1>LitShelf</h1>
-    </div>
-
-    <!-- Botões de navegação e menu à direita -->
-    <div class="navbar-menu">
-      <!-- Botões de navegação -->
-      <BaseButton variant="text" color="white" size="small">
+    <!-- Botões de navegação centralizados -->
+    <div class="navbar-menu navbar-menu-center">
+      <BaseButton variant="text" color="accent" size="large" class="nav-button">
         <RouterLink to="/bookshelf">Home</RouterLink>
       </BaseButton>
-      <BaseButton variant="text" color="white" size="small">
-        <RouterLink to="/addBook">Adiconar livro</RouterLink>
+      <BaseButton variant="text" color="accent" size="large" class="nav-button">
+        <RouterLink to="/addBook">Adicionar livro</RouterLink>
       </BaseButton>
-      <BaseButton variant="text" color="white" size="small">
+      <BaseButton variant="text" color="accent" size="large" class="nav-button">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
       </BaseButton>
+    </div>
 
-      <!-- Ícone de usuário com menu -->
+    <!-- Ícone de usuário com menu à direita -->
+    <div class="navbar-menu navbar-menu-right">
       <v-menu offset-y>
         <template #activator="{ props }">
-          <BaseButton v-bind="props" icon color="white">
+          <BaseButton v-bind="props" icon color="accent" class="user-button">
             <v-icon>mdi-account</v-icon>
           </BaseButton>
         </template>
@@ -67,32 +63,64 @@ const goToDashboard = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(90deg, #8d6e63, #4e342e); /* Gradiente marrom */
-  color: white;
+  background-color: #4e342e;
+  /* Cor escolhida para a navbar */
+  color: var(--v-text);
   padding: 0.5rem 2rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  font-family: "Garamond", serif; /* Fonte que remete a uma biblioteca */
+  height: 80px;
+  /* Aumentando a altura da navbar */
 }
 
 .navbar-logo h1 {
   font-size: 1.8rem;
   font-weight: bold;
   margin: 0;
-  color: #ffffff;
+  color: var(--v-text);
 }
 
 .navbar-menu {
   display: flex;
   align-items: center;
-  gap: 1rem; /* Espaçamento entre os botões */
+  gap: 2rem;
+  /* Espaçamento entre os botões */
+}
+
+.navbar-menu-center {
+  flex-grow: 1;
+  /* Faz com que os botões ocupem o espaço disponível */
+  justify-content: center;
+  /* Centraliza os botões */
+}
+
+.navbar-menu-right {
+  justify-content: flex-end;
+  /* Alinha o botão do usuário à direita */
 }
 
 .navbar-menu a {
   color: inherit;
   text-decoration: none;
+  font-family: "Times New Roman", Times, serif;
+  /* Fonte diferente para os botões */
+  font-size: 1.2rem;
+  /* Aumentando o tamanho da fonte */
 }
 
 .navbar-menu a:hover {
-  color: #ffcc80; /* Cor de destaque */
+  color: var(--v-accent);
+  /* Cor de destaque */
+}
+
+.nav-button {
+  font-family: "Times New Roman", Times, serif;
+  /* Fonte diferente para os botões */
+  font-size: 1.2rem;
+  /* Aumentando o tamanho da fonte */
+}
+
+.user-button {
+  font-size: 1.2rem;
+  /* Aumentando o tamanho da fonte */
 }
 </style>

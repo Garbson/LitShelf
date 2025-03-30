@@ -1,43 +1,79 @@
-// stores/useDashboardStore.ts
-import { getAuth } from 'firebase/auth'
-import { collection, getDocs, getFirestore, query, where } from 'firebase/firestore'
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { defineStore } from "pinia";
+import { useBookshelfStore } from "./useBookshelfStore";
+import { computed, ref } from "vue";
 
-export const useDashboardStore = defineStore('dashboard', () => {
-  const auth = getAuth()
-  const db = getFirestore()
+interface Book {
+  id: string;
+  title: string;
+  author: string;
+  coverImage: string;
+  quotes: string[];
+  genre?: string; // Add genre property
+  startDate?: Date; // Add start date
+  endDate?: Date; // Add end date
+}
 
-  const totalBooksRead = ref(0)
-  const totalFavoriteQuotes = ref(0)
+export const useDashboardStore = defineStore("dashboard", () => {
+  const bookshelfStore = useBookshelfStore();
+  const books = computed(() => bookshelfStore.books);
+
+  const totalBooksRead = computed(() => {
+    return books.value.filter((book) => book.endDate).length;
+  });
+
+  const totalFavoriteQuotes = computed(() => {
+    let count = 0;
+    books.value.forEach((book) => {
+      count += book.quotes.length;
+    });
+    return count;
+  });
+
+  const genresRead = computed(() => {
+    const genreCounts: { [key: string]: number } = {};
+    books.value.forEach((book) => {
+      if (book.genre) {
+        genreCounts[book.genre] = (genreCounts[book.genre] || 0) + 1;
+      }
+    });
+    return genreCounts;
+  });
+
+  const averageReadingTime = computed(() => {
+    let totalTime = 0;
+    let completedBooks = 0;
+
+    books.value.forEach((book) => {
+      if (book.startDate && book.endDate) {
+        const start = new Date(book.startDate).getTime();
+        const end = new Date(book.endDate).getTime();
+        totalTime += end - start;
+        completedBooks++;
+      }
+    });
+
+    if (completedBooks === 0) {
+      return 0;
+    }
+
+    const averageTimeInDays = totalTime / completedBooks / (1000 * 60 * 60 * 24);
+    return Math.round(averageTimeInDays);
+  });
+
+  const booksInProgress = computed(() => {
+    return books.value.filter((book) => !book.endDate);
+  });
 
   const fetchDashboardData = async () => {
-    const user = auth.currentUser
-    if (!user) return
-
-    try {
-      const booksQuery = query(collection(db, 'books'), where('userId', '==', user.uid))
-      const booksSnapshot = await getDocs(booksQuery)
-
-      totalBooksRead.value = booksSnapshot.size
-
-      let quotesCount = 0
-      booksSnapshot.forEach((doc) => {
-        const data = doc.data()
-        if (data.quotes) {
-          quotesCount += data.quotes.length
-        }
-      })
-
-      totalFavoriteQuotes.value = quotesCount
-    } catch (error) {
-      console.error('Erro ao buscar dados do Firestore:', error)
-    }
-  }
+    // No need to fetch data here, it's all computed from bookshelfStore.books
+  };
 
   return {
     totalBooksRead,
     totalFavoriteQuotes,
+    genresRead,
+    averageReadingTime,
+    booksInProgress,
     fetchDashboardData,
-  }
-})
+  };
+});
