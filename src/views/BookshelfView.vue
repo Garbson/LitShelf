@@ -8,17 +8,15 @@
       <!-- Filtros e pesquisa -->
       <v-row class="mb-6 d-flex justify-center">
         <v-col cols="12" sm="6" md="4">
-          <v-text-field
+          <BaseTextField
             v-model="searchQuery"
             label="Pesquisar livros"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-            rounded="lg"
             prepend-inner-icon="mdi-magnify"
             class="search-field rounded-lg"
             clearable
-          ></v-text-field>
+            dense
+            rounded="lg"
+          />
         </v-col>
         
         <v-col cols="12" sm="6" md="4">
@@ -67,9 +65,9 @@
       </v-alert>
 
       <!-- Lista de livros filtrados -->
-      <v-row v-if="filteredBooks.length" justify="center" align="start" dense>
+      <v-row v-if="paginatedBooks.length" justify="center" align="start" dense>
         <v-col
-          v-for="book in filteredBooks"
+          v-for="book in paginatedBooks"
           :key="book.id"
           cols="12"
           sm="6"
@@ -141,6 +139,16 @@
         </v-col>
       </v-row>
 
+      <!-- Controles de paginação -->
+      <div v-if="filteredBooks.length > booksPerPage" class="d-flex justify-center my-4">
+        <v-pagination
+          v-model="currentPage"
+          :length="totalPages"
+          :total-visible="5"
+          rounded="circle"
+        ></v-pagination>
+      </div>
+
       <!-- Mensagem de nenhum livro -->
       <v-card 
         v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error" 
@@ -162,18 +170,6 @@
           Adicionar Livros
         </v-btn>
       </v-card>
-
-      <!-- Botão flutuante para adicionar livro -->
-      <v-btn
-        class="floating-add-button"
-        color="accent"
-        size="large"
-        icon
-        elevation="4"
-        :to="'/addBook'"
-      >
-        <v-icon>mdi-plus</v-icon>
-      </v-btn>
     </v-card>
 
     <!-- Snackbar para notificações -->
@@ -190,6 +186,7 @@
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import BaseTextField from '@/components/BaseTextField.vue';
 
 const bookshelfStore = useBookshelfStore();
 const router = useRouter();
@@ -200,6 +197,8 @@ const sortOption = ref("title_asc");
 const showSnackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
+const currentPage = ref(1);
+const booksPerPage = 8;
 
 // Opções de filtro
 const filterOptions = [
@@ -230,9 +229,14 @@ const computedBooks = computed(() => {
 const filteredBooks = computed(() => {
   let result = [...computedBooks.value];
   
-  // Aplicar filtro por status
+  // Aplicar filtro por status - corrigido para garantir comparação consistente
   if (selectedFilter.value !== "all") {
-    result = result.filter(book => book.status === selectedFilter.value);
+    result = result.filter(book => {
+      // Converter ambos para número para garantir a comparação correta
+      const bookStatus = typeof book.status === 'string' ? Number(book.status) : book.status;
+      const filterStatus = Number(selectedFilter.value);
+      return bookStatus === filterStatus;
+    });
   }
   
   // Aplicar pesquisa
@@ -278,6 +282,18 @@ const filteredBooks = computed(() => {
   return result;
 });
 
+// Livros paginados
+const paginatedBooks = computed(() => {
+  const startIndex = (currentPage.value - 1) * booksPerPage;
+  const endIndex = startIndex + booksPerPage;
+  return filteredBooks.value.slice(startIndex, endIndex);
+});
+
+// Total de páginas
+const totalPages = computed(() => {
+  return Math.ceil(filteredBooks.value.length / booksPerPage);
+});
+
 // Verificar se há mensagem de sucesso via query param (ex: após deletar livro)
 watch(() => route.query.message, (newMessage) => {
   if (newMessage) {
@@ -288,6 +304,11 @@ watch(() => route.query.message, (newMessage) => {
     // Limpar a query param após mostrar a mensagem
     router.replace({ query: {} });
   }
+});
+
+// Resetar a página atual quando os filtros ou ordenação mudarem
+watch([searchQuery, selectedFilter, sortOption], () => {
+  currentPage.value = 1;
 });
 
 onMounted(() => {
@@ -499,13 +520,8 @@ const getStatusClass = (status: string | number): string => {
   align-items: center;
 }
 
-.floating-add-button {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  border-radius: 50%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  z-index: 5;
+.floating-btn-container {
+  display: none;
 }
 
 .search-field, 

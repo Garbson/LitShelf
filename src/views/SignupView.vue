@@ -23,50 +23,42 @@
               <h2 class="text-h5 mb-6 text-serif">Cadastro</h2>
               
               <v-form ref="signupForm" v-model="isFormValid" lazy-validation @submit.prevent="handleSignup">
-                <v-text-field
+                <BaseTextField
                   v-model="name"
                   label="Nome"
                   required
-                  variant="outlined"
                   prepend-inner-icon="mdi-account"
-                  class="mb-4"
                   :rules="nameRules"
-                ></v-text-field>
+                />
 
-                <v-text-field
+                <BaseTextField
                   v-model="email"
                   label="E-mail"
                   type="email"
                   required
-                  variant="outlined"
                   prepend-inner-icon="mdi-email"
-                  class="mb-4"
                   :rules="emailRules"
-                ></v-text-field>
+                />
 
-                <v-text-field
+                <BaseTextField
                   v-model="password"
                   label="Senha"
                   :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                   :type="showPassword ? 'text' : 'password'"
                   required
-                  variant="outlined"
                   prepend-inner-icon="mdi-lock"
-                  class="mb-4"
                   :rules="passwordRules"
                   @click:append-inner="showPassword = !showPassword"
-                ></v-text-field>
+                />
 
-                <v-text-field
+                <BaseTextField
                   v-model="confirmPassword"
                   label="Confirmar Senha"
                   :type="showPassword ? 'text' : 'password'"
                   required
-                  variant="outlined"
                   prepend-inner-icon="mdi-lock-check"
-                  class="mb-4"
                   :rules="confirmPasswordRules"
-                ></v-text-field>
+                />
 
                 <v-alert
                   v-if="errorMessage"
@@ -152,6 +144,7 @@
 </template>
 
 <script lang="ts" setup>
+import BaseTextField from '@/components/BaseTextField.vue'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'

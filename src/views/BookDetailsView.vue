@@ -124,46 +124,41 @@
                 <!-- Status "Estou Lendo" -->
                 <template v-if="selectedBook.status === 2">
                   <p class="font-weight-medium mb-1">Começou a ler em</p>
-                  <v-text-field
+                  <BaseTextField
                     v-model="startDateFormatted"
                     type="date"
-                    variant="outlined"
                     density="compact"
                     @update:model-value="updateStartDate"
-                  ></v-text-field>
+                  />
                 </template>
                 
                 <!-- Status "Já Li" - Mostrar tanto data de início quanto data de conclusão -->
                 <template v-else-if="selectedBook.status === 1">
                   <p class="font-weight-medium mb-1">Começou a ler em</p>
-                  <v-text-field
+                  <BaseTextField
                     v-model="startDateFormatted"
                     type="date"
-                    variant="outlined"
                     density="compact"
                     class="mb-3"
                     @update:model-value="updateStartDate"
-                  ></v-text-field>
+                  />
                   
                   <p class="font-weight-medium mb-1">Leitura concluída em</p>
-                  <v-text-field
+                  <BaseTextField
                     v-model="endDateFormatted"
                     type="date"
-                    variant="outlined"
                     density="compact"
                     @update:model-value="updateEndDate"
-                  ></v-text-field>
+                  />
                 </template>
               </div>
               
               <p class="font-weight-medium mb-1">Gênero</p>
-              <v-text-field
+              <BaseTextField
                 v-model="selectedBook.genre"
-                variant="outlined"
                 density="compact"
-                hide-details
-                class="mb-4"
                 @blur="updateBookGenre"
+                class="mb-4"
               />
               
               <p class="font-weight-medium mb-1">Número de Páginas</p>
@@ -206,42 +201,33 @@
                 Frases Favoritas
               </h3>
               
-              <!-- Formulário para adicionar nova frase -->
-              <v-card class="pa-4 mb-4 quote-form-card" variant="outlined" elevation="1">
-                <v-text-field
-                  v-model="newQuote.text"
-                  label="Digite uma frase favorita"
-                  variant="outlined"
+              <!-- Barra de pesquisa de frases e botão para adicionar nova frase -->
+              <div class="d-flex align-center mb-4">
+                <BaseTextField
+                  v-model="quoteSearchQuery"
+                  label="Pesquisar frases"
                   density="comfortable"
-                  hide-details
-                  class="mb-3"
+                  prepend-inner-icon="mdi-magnify"
+                  clearable
+                  class="flex-grow-1"
                 />
                 
-                <v-text-field
-                  v-model="newQuote.page"
-                  label="Página (opcional)"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                  type="number"
-                  class="mb-3"
-                />
-                
-                <v-btn 
-                  @click="addQuote" 
-                  color="primary" 
-                  :disabled="!newQuote.text"
-                  prepend-icon="mdi-plus"
-                  class="mt-2"
+                <v-btn
+                  class="ml-2"
+                  color="primary"
+                  icon
+                  variant="elevated"
+                  @click="showQuoteDialog = true"
                 >
-                  Adicionar Frase
+                  <v-icon>mdi-plus</v-icon>
+                  <v-tooltip activator="parent" location="top">Adicionar frase</v-tooltip>
                 </v-btn>
-              </v-card>
+              </div>
               
-              <!-- Lista de frases -->
+              <!-- Lista de frases filtradas e paginadas -->
               <div class="quotes-list">
                 <v-card 
-                  v-for="(quote, index) in selectedBook.quotes" 
+                  v-for="(quote, index) in paginatedAndFilteredQuotes" 
                   :key="index"
                   class="mb-4 quote-card"
                   variant="outlined"
@@ -249,28 +235,24 @@
                 >
                   <v-card-text>
                     <!-- Modo de edição -->
-                    <template v-if="editingIndex === index">
-                      <v-text-field
+                    <template v-if="editingIndex === getPaginationIndex(index)">
+                      <BaseTextField
                         v-model="editingQuote.text"
                         label="Editar Frase"
-                        variant="outlined"
                         density="compact"
-                        hide-details
                         class="mb-2"
                       />
                       
-                      <v-text-field
+                      <BaseTextField
                         v-model="editingQuote.page"
                         label="Editar Página (opcional)"
-                        variant="outlined"
                         density="compact"
-                        hide-details
                         type="number"
                         class="mb-3"
                       />
                       
                       <div class="d-flex gap-2 justify-end">
-                        <v-btn @click="saveQuoteEdit(index)" color="success" size="small" variant="tonal">Salvar</v-btn>
+                        <v-btn @click="saveQuoteEdit(getPaginationIndex(index))" color="success" size="small" variant="tonal">Salvar</v-btn>
                         <v-btn @click="cancelEdit" color="error" size="small" variant="tonal">Cancelar</v-btn>
                       </div>
                     </template>
@@ -279,18 +261,18 @@
                     <template v-else>
                       <div class="quote-text">
                         <span class="quote-mark">"</span>
-                        {{ quote }}
+                        {{ quote.text }}
                         <span class="quote-mark">"</span>
                         
-                        <span v-if="selectedBook.quotePages && selectedBook.quotePages[index]" 
+                        <span v-if="quote.page" 
                               class="text-caption page-reference">
-                          (Página {{ selectedBook.quotePages[index] }})
+                          (Página {{ quote.page }})
                         </span>
                       </div>
                       
                       <div class="d-flex mt-3 justify-end gap-2">
                         <v-btn 
-                          @click="startEdit(index, quote)" 
+                          @click="startEdit(getPaginationIndex(index), quote.text)" 
                           color="primary" 
                           size="small"
                           variant="tonal"
@@ -300,7 +282,7 @@
                         </v-btn>
                         
                         <v-btn 
-                          @click="confirmRemoveQuote(index)" 
+                          @click="confirmRemoveQuote(getPaginationIndex(index))" 
                           color="error" 
                           size="small"
                           variant="tonal"
@@ -314,9 +296,19 @@
                 </v-card>
                 
                 <!-- Mensagem quando não há frases -->
-                <p v-if="!selectedBook.quotes || selectedBook.quotes.length === 0" class="text-center pa-4">
-                  Nenhuma frase favorita adicionada ainda.
+                <p v-if="!filteredQuotes.length" class="text-center pa-4">
+                  {{ quoteSearchQuery ? 'Nenhuma frase corresponde à sua pesquisa.' : 'Nenhuma frase favorita adicionada ainda.' }}
                 </p>
+                
+                <!-- Paginação -->
+                <div v-if="filteredQuotes.length > quotesPerPage" class="d-flex justify-center mt-4">
+                  <v-pagination
+                    v-model="quotesPage"
+                    :length="Math.ceil(filteredQuotes.length / quotesPerPage)"
+                    rounded="circle"
+                    :total-visible="5"
+                  ></v-pagination>
+                </div>
               </div>
             </div>
           </v-col>
@@ -361,6 +353,48 @@
       @recommended="onRecommendationSent"
     />
 
+    <!-- Diálogo para adicionar frase favorita -->
+    <v-dialog v-model="showQuoteDialog" max-width="500px">
+      <v-card class="pa-4">
+        <v-card-title class="text-h5 mb-3">
+          <v-icon color="accent" class="mr-2">mdi-format-quote-close</v-icon>
+          Adicionar Frase Favorita
+        </v-card-title>
+        
+        <v-card-text>
+          <BaseTextField
+            v-model="newQuote.text"
+            label="Digite uma frase favorita"
+            density="comfortable"
+            class="mb-4"
+            autofocus
+          />
+          
+          <BaseTextField
+            v-model="newQuote.page"
+            label="Página (opcional)"
+            density="comfortable"
+            type="number"
+            class="mb-4"
+          />
+        </v-card-text>
+        
+        <v-card-actions class="justify-end">
+          <v-btn color="default" variant="text" @click="showQuoteDialog = false">
+            Cancelar
+          </v-btn>
+          <v-btn 
+            color="primary" 
+            variant="elevated"
+            :disabled="!newQuote.text"
+            @click="addQuoteFromDialog"
+          >
+            Adicionar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar para notificações -->
     <v-snackbar v-model="showSnackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}
@@ -372,6 +406,7 @@
 </template>
 
 <script lang="ts" setup>
+import BaseTextField from '@/components/BaseTextField.vue';
 import BookRecommendationDialog from '@/components/BookRecommendationDialog.vue';
 import { db } from "@/firebase";
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
@@ -394,6 +429,10 @@ const snackbarText = ref("");
 const snackbarColor = ref("success");
 const bookRating = ref(0);
 const showRecommendDialog = ref(false);
+const quoteSearchQuery = ref("");
+const quotesPage = ref(1);
+const quotesPerPage = 3;
+const showQuoteDialog = ref(false);
 
 // Formatação de datas para exibição e armazenamento
 const formatDateForDisplay = (date: Date | string | null | undefined): string => {
@@ -470,6 +509,26 @@ const readingStatus = computed(() => {
     label: option.label,
     color: option.color
   };
+});
+
+// Computed para renderização condicional da seção de frases favoritas
+const showQuotesSection = computed(() => {
+  return Number(selectedBook.value?.status) === 2 || Number(selectedBook.value?.status) === 1;
+});
+
+// Computed para frases filtradas
+const filteredQuotes = computed(() => {
+  if (!selectedBook.value?.quotes) return [];
+  return selectedBook.value.quotes
+    .map((text, index) => ({ text, page: selectedBook.value.quotePages[index] }))
+    .filter(quote => quote.text.toLowerCase().includes(quoteSearchQuery.value.toLowerCase()));
+});
+
+// Computed para frases paginadas
+const paginatedAndFilteredQuotes = computed(() => {
+  const start = (quotesPage.value - 1) * quotesPerPage;
+  const end = start + quotesPerPage;
+  return filteredQuotes.value.slice(start, end);
 });
 
 // Carrega o livro quando o componente é montado
@@ -722,6 +781,42 @@ const addQuote = async () => {
   }
 };
 
+// Adicionar uma nova frase a partir do diálogo
+const addQuoteFromDialog = async () => {
+  if (!bookshelfStore.user || !selectedBook.value || !newQuote.value.text) return;
+  
+  try {
+    // Inicializa os arrays se não existirem
+    if (!selectedBook.value.quotes) {
+      selectedBook.value.quotes = [];
+    }
+    if (!selectedBook.value.quotePages) {
+      selectedBook.value.quotePages = [];
+    }
+    
+    // Adiciona a frase ao Firebase
+    await bookshelfStore.addPhase(selectedBook.value.id, {
+      text: newQuote.value.text,
+      page: newQuote.value.page || null,
+    });
+    
+    // Atualiza localmente
+    selectedBook.value.quotes.push(newQuote.value.text);
+    selectedBook.value.quotePages.push(newQuote.value.page);
+    
+    // Limpa o formulário
+    newQuote.value = { text: "", page: null };
+    
+    // Fecha o diálogo
+    showQuoteDialog.value = false;
+    
+    showNotification("Frase favorita adicionada com sucesso!");
+  } catch (err: any) {
+    console.error("Erro ao adicionar frase:", err);
+    showNotification("Erro ao adicionar frase", "error");
+  }
+};
+
 // Iniciar edição de uma frase
 const startEdit = (index: number, quote: string) => {
   editingIndex.value = index;
@@ -758,6 +853,11 @@ const saveQuoteEdit = async (index: number) => {
       // Encontrar o documento da frase a ser editada
       if (phasesSnapshot.docs[index]) {
         const phaseDoc = phasesSnapshot.docs[index];
+        
+        // Atualizar os arrays locais antes de salvar
+        selectedBook.value.quotes[index] = editingQuote.value.text;
+        selectedBook.value.quotePages[index] = editingQuote.value.page;
+        
         // Atualizar o documento da frase usando o método do store
         await bookshelfStore.editPhase(
           selectedBook.value.id,
@@ -855,10 +955,10 @@ const onRecommendationSent = (count: number) => {
   });
 };
 
-// Computed para renderização condicional da seção de frases favoritas
-const showQuotesSection = computed(() => {
-  return Number(selectedBook.value?.status) === 2 || Number(selectedBook.value?.status) === 1;
-});
+// Função para obter o índice correto na paginação
+const getPaginationIndex = (index: number) => {
+  return (quotesPage.value - 1) * quotesPerPage + index;
+};
 </script>
 
 <style scoped>

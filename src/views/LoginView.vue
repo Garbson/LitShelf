@@ -23,34 +23,34 @@
               <h2 class="text-h5 mb-6 text-serif">Entrar</h2>
               
               <v-form ref="form" v-model="valid" @submit.prevent="login">
-                <v-text-field
+                <BaseTextField
                   v-model="email"
                   :rules="emailRules"
                   label="E-mail"
                   required
-                  variant="outlined"
                   prepend-inner-icon="mdi-email"
                   autocomplete="email"
                   class="mb-4"
                   :error-messages="formErrors.email"
                   @input="formErrors.email = ''"
-                ></v-text-field>
+                  :hide-details="false"
+                />
 
-                <v-text-field
+                <BaseTextField
                   v-model="password"
                   :rules="passwordRules"
                   :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                   :type="showPassword ? 'text' : 'password'"
                   label="Senha"
                   required
-                  variant="outlined"
                   prepend-inner-icon="mdi-lock"
                   autocomplete="current-password"
                   class="mb-2"
                   :error-messages="formErrors.password"
                   @input="formErrors.password = ''"
                   @click:append-inner="showPassword = !showPassword"
-                ></v-text-field>
+                  :hide-details="false"
+                />
 
                 <div class="d-flex justify-space-between align-center mb-6">
                   <v-checkbox
@@ -151,6 +151,7 @@
 </template>
 
 <script lang="ts" setup>
+import BaseTextField from '@/components/BaseTextField.vue'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'

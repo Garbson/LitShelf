@@ -9,13 +9,10 @@
       <!-- Campo de busca + botão -->
       <v-row class="d-flex justify-center mb-6" style="width: 100%">
         <v-col cols="12" md="6" lg="5">
-          <v-text-field
+          <BaseTextField
             v-model="searchQuery"
             label="Digite o nome do livro ou autor"
-            variant="outlined"
             density="comfortable"
-            hide-details
-            clearable
             @keyup.enter="fetchBooks"
             class="search-field rounded-lg mb-3"
             prepend-inner-icon="mdi-magnify"
@@ -217,38 +214,32 @@
           </v-select>
           
           <!-- Data de início (para "Estou Lendo") -->
-          <v-text-field
+          <BaseTextField
             v-if="dialogBookStatus === 2"
             v-model="dialogStartDate"
             label="Data de início da leitura"
             type="date"
-            variant="outlined"
             hint="Deixe em branco para usar a data atual"
             persistent-hint
-            class="mb-4"
-          ></v-text-field>
+          />
           
           <!-- Datas de início e fim (para "Já Li") -->
           <template v-if="dialogBookStatus === 1">
-            <v-text-field
+            <BaseTextField
               v-model="dialogStartDate"
               label="Data de início da leitura"
               type="date"
-              variant="outlined"
               hint="Opcional"
               persistent-hint
-              class="mb-4"
-            ></v-text-field>
+            />
             
-            <v-text-field
+            <BaseTextField
               v-model="dialogEndDate"
               label="Data de conclusão da leitura"
               type="date"
-              variant="outlined"
               hint="Deixe em branco para usar a data atual"
               persistent-hint
-              class="mb-4"
-            ></v-text-field>
+            />
           </template>
         </v-card-text>
         
@@ -268,6 +259,7 @@
 </template>
 
 <script lang="ts" setup>
+import BaseTextField from '@/components/BaseTextField.vue';
 import { searchBooks } from "@/services/googleBooks";
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
 import { onMounted, ref } from "vue";

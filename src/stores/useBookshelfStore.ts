@@ -256,15 +256,24 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         ...phaseData,
         addedAt: new Date(),
       })
+      
+      // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value && selectedBook.value.id === bookId) {
         if (!selectedBook.value.quotes) selectedBook.value.quotes = []
         if (!selectedBook.value.quotePages) selectedBook.value.quotePages = []
-        selectedBook.value.quotes.push(phaseData.text)
-        selectedBook.value.quotePages.push(phaseData.page)
+        
+        // Evitar duplicação - verificar se a frase já existe
+        if (!selectedBook.value.quotes.includes(phaseData.text)) {
+          selectedBook.value.quotes.push(phaseData.text)
+          selectedBook.value.quotePages.push(phaseData.page)
+        }
       }
+      
+      return docRef.id
     } catch (err: any) {
       console.error('Erro ao adicionar frase:', err)
       error.value = 'Erro ao adicionar frase.'
+      throw err
     }
   }
 
