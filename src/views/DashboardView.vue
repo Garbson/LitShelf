@@ -157,20 +157,79 @@
             </v-card-text>
           </v-card>
         </v-col>
+
+        <!-- Recomendações de Livros -->
+        <v-col cols="12" md="6">
+          <v-card class="mb-4 pa-4 book-card equal-height-card">
+            <v-card-title class="text-h6 text-primary card-title d-flex align-center">
+              Recomendações Recebidas
+              <v-badge
+                v-if="recommendationStore.pendingRecommendationsCount > 0"
+                :content="recommendationStore.pendingRecommendationsCount"
+                color="error"
+                class="ml-2"
+              ></v-badge>
+            </v-card-title>
+            <v-card-text>
+              <div v-if="recommendationStore.pendingRecommendations.length > 0">
+                <v-row>
+                  <v-col
+                    v-for="recommendation in recommendationStore.pendingRecommendations.slice(0, 3)"
+                    :key="recommendation.id"
+                    cols="12"
+                  >
+                    <v-card class="recommendation-card bg-primary">
+                      <div class="d-flex flex-column">
+                        <v-card-title class="text-background pa-2">
+                          {{ recommendation.book.title }}
+                        </v-card-title>
+                        <v-card-subtitle class="text-accent pa-2">
+                          De: {{ recommendation.fromUserName }}
+                        </v-card-subtitle>
+                        <v-card-text class="text-background pa-2" v-if="recommendation.message">
+                          "{{ recommendation.message }}"
+                        </v-card-text>
+                      </div>
+                      <v-card-actions>
+                        <v-btn variant="outlined" color="success" @click="recommendationStore.acceptRecommendation(recommendation.id)">
+                          Aceitar
+                        </v-btn>
+                        <v-btn variant="outlined" color="error" @click="recommendationStore.rejectRecommendation(recommendation.id)">
+                          Recusar
+                        </v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </v-col>
+                </v-row>
+                <div class="d-flex justify-center mt-2" v-if="recommendationStore.pendingRecommendations.length > 3">
+                  <v-btn color="primary" variant="text" @click="showAllRecommendations">
+                    Ver todas ({{ recommendationStore.pendingRecommendations.length }})
+                  </v-btn>
+                </div>
+              </div>
+              <div v-else class="d-flex flex-column align-center justify-center">
+                <v-icon size="56" color="primary" class="mb-2">mdi-book-check</v-icon>
+                <p class="text-center text-primary">Você não tem recomendações pendentes.</p>
+              </div>
+            </v-card-text>
+          </v-card>
+        </v-col>
       </v-row>
     </v-card>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, computed } from "vue";
-import { useDashboardStore } from "@/stores/useDashboardStore";
-import Chart from "chart.js/auto";
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
+import { useDashboardStore } from "@/stores/useDashboardStore";
+import { useRecommendationStore } from "@/stores/useRecommendationStore";
+import Chart from "chart.js/auto";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 const dashboardStore = useDashboardStore();
 const bookshelfStore = useBookshelfStore();
+const recommendationStore = useRecommendationStore();
 const router = useRouter();
 const lastBookRead = computed(() => {
   const completedBooks = bookshelfStore.books.filter((book) => book.endDate);
@@ -201,6 +260,7 @@ const bookshelfVisitors = ref(["Visitante 1", "Visitante 2", "Visitante 3"]);
 
 onMounted(() => {
   dashboardStore.fetchDashboardData();
+  recommendationStore.fetchReceivedRecommendations();
   createGenreChart();
 });
 
@@ -249,6 +309,10 @@ const createGenreChart = () => {
 
 const goToProfile = () => {
   router.push("/profile");
+};
+
+const showAllRecommendations = () => {
+  router.push("/recommendations");
 };
 </script>
 
@@ -351,5 +415,15 @@ const goToProfile = () => {
 .user-info {
   display: flex;
   flex-direction: column;
+}
+
+.recommendation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
 }
 </style>

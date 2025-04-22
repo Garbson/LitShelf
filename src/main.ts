@@ -1,4 +1,4 @@
-import GlobalComponents from '@/components' // Importa o arquivo index.ts da pasta components
+import GlobalComponents from '@/components'; // Importa o arquivo index.ts da pasta components
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
@@ -6,6 +6,7 @@ import vuetify from './plugins/vuetify'
 import router from './router'
 
 import '@mdi/font/css/materialdesignicons.css'
+import './assets/styles/main.css'; // Importando estilos globais
 
 const app = createApp(App)
 

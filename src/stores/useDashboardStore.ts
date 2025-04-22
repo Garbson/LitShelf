@@ -1,15 +1,15 @@
 // src/stores/useDashboardStore.ts
 import { defineStore } from "pinia";
-import { useBookshelfStore } from "./useBookshelfStore";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useAuthStore } from "./useAuthStore";
+import { useBookshelfStore } from "./useBookshelfStore";
 
 interface Book {
   id: string;
   title: string;
   author: string;
   coverImage: string;
-  quotes: string[];
+  quotes?: string[]; // Adicionado o operador ? para indicar que é opcional
   genre?: string;
   startDate?: Date;
   endDate?: Date;
@@ -27,7 +27,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const totalFavoriteQuotes = computed(() => {
     let count = 0;
     books.value.forEach((book) => {
-      count += book.quotes.length;
+      // Verificar se quotes existe antes de acessar seu comprimento
+      count += book.quotes?.length || 0;
     });
     return count;
   });
@@ -98,7 +99,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
   // Última Frase Adicionada
   const lastQuoteAdded = computed(() => {
-    const allQuotes = books.value.flatMap((book) => book.quotes);
+    const allQuotes = books.value
+      .filter((book) => book.quotes && Array.isArray(book.quotes))
+      .flatMap((book) => book.quotes);
+
     if (allQuotes.length > 0) {
       return allQuotes[allQuotes.length - 1];
     }

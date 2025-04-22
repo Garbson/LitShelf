@@ -1,12 +1,12 @@
-import { getAuth, onAuthStateChanged } from 'firebase/auth' // Importação do Firebase Auth
+import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Importação do Firebase Auth
 import { createRouter, createWebHistory } from 'vue-router'
 
 // Importando as views
+import adcionarLivro from '../views/adcionarLivro.vue'
 import BookDetailsView from '../views/BookDetailsView.vue'
 import BookshelfView from '../views/BookshelfView.vue'
 import DashboardView from '../views/DashboardView.vue'
-import adcionarLivro
- from '../views/adcionarLivro.vue'
+import FriendsView from '../views/FriendsView.vue'
 import LoginView from '../views/LoginView.vue'
 import SignupView from '../views/SignupView.vue'
 
@@ -69,6 +69,12 @@ const routes = [
     name: 'book-details',
     component: BookDetailsView,
     props: true,
+    beforeEnter: requireAuth, // Protegendo a rota
+  },
+  {
+    path: '/friends',
+    name: 'friends',
+    component: FriendsView,
     beforeEnter: requireAuth, // Protegendo a rota
   },
   {
