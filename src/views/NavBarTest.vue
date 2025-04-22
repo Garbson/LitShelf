@@ -191,7 +191,6 @@ const toggleDarkMode = () => {
 const handleLogout = async () => {
   try {
     await authStore.logout();
-    console.log("Usuário desconectado");
     router.push("/login");
   } catch (error) {
     console.error("Erro ao fazer logout:", error);

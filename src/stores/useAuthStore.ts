@@ -52,7 +52,6 @@ export const useAuthStore = defineStore('auth', () => {
         uid: userCredential.user.uid,
         email: userCredential.user.email || '',
       }
-      console.log('Usuário logado:', user.value)
       router.push('/dashboard') // Redireciona após o login
     } catch (error) {
       console.error('Erro ao fazer login:', error)

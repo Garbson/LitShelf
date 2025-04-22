@@ -54,9 +54,10 @@
               <v-img
                 :src="book.volumeInfo.imageLinks?.thumbnail || '/placeholder-book.png'"
                 :alt="book.volumeInfo.title"
-                contain
-                class="book-cover"
                 height="200"
+                :cover="false"
+                style="object-fit: contain;"
+                class="book-cover"
               />
             </div>
             <v-card-title
@@ -83,10 +84,12 @@
                 prepend-inner-icon="mdi-bookmark"
               >
                 <template v-slot:selection="{ item }">
-                  <v-icon :color="item?.props?.item?.color || 'grey'" size="small" class="mr-1">
-                    {{ item?.props?.item?.icon || 'mdi-bookmark-outline' }}
-                  </v-icon>
-                  {{ item?.props?.item?.label || 'Quero Ler' }}
+                  <div class="d-flex align-center">
+                    <v-icon :color="getStatusColor(book.readingStatus)" size="small" class="mr-1">
+                      {{ getStatusIcon(book.readingStatus) }}
+                    </v-icon>
+                    {{ getStatusLabel(book.readingStatus) }}
+                  </div>
                 </template>
                 <template v-slot:item="{ item, props }">
                   <v-list-item v-bind="props">
@@ -197,10 +200,12 @@
             item-value="value"
           >
             <template v-slot:selection="{ item }">
-              <v-icon :color="item?.props?.item?.color || 'grey'" class="mr-2">
-                {{ item?.props?.item?.icon || 'mdi-bookmark-outline' }}
-              </v-icon>
-              {{ item?.props?.item?.label || 'Quero Ler' }}
+              <div class="d-flex align-center">
+                <v-icon :color="getStatusColor(dialogBookStatus)" class="mr-2">
+                  {{ getStatusIcon(dialogBookStatus) }}
+                </v-icon>
+                {{ getStatusLabel(dialogBookStatus) }}
+              </div>
             </template>
             <template v-slot:item="{ item, props }">
               <v-list-item v-bind="props">
@@ -375,8 +380,8 @@ const confirmAddBook = async () => {
       addedAt: new Date().toISOString().split('T')[0], // Formato YYYY-MM-DD
     };
 
-    // Adicionar log para debugging
-    console.log("Salvando livro com dados:", bookData);
+
+
     
     // Salvar no banco de dados
     await bookshelfStore.addBook(bookData);
@@ -406,6 +411,21 @@ const continueAdding = () => {
 const goToBookshelf = () => {
   router.push("/bookshelf");
 };
+
+const getStatusColor = (status: number): string => {
+  const option = statusOptions.find(option => option.value === status);
+  return option?.color || "grey";
+};
+
+const getStatusIcon = (status: number): string => {
+  const option = statusOptions.find(option => option.value === status);
+  return option?.icon || "mdi-bookmark-outline";
+};
+
+const getStatusLabel = (status: number): string => {
+  const option = statusOptions.find(option => option.value === status);
+  return option?.label || "Quero Ler";
+};
 </script>
 
 <style scoped>
@@ -427,6 +447,7 @@ const goToBookshelf = () => {
   background-color: rgb(var(--v-theme-surface));
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .book-card:hover {
@@ -436,11 +457,13 @@ const goToBookshelf = () => {
 
 .book-cover-container {
   width: 100%;
+  height: 200px;
   overflow: hidden;
   background-color: rgb(var(--v-theme-surface-variant), 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
 }
 
 .bookshelf-title {

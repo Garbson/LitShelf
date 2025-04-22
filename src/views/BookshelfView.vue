@@ -92,8 +92,9 @@
                 :src="book.coverImage || '/placeholder-book.png'"
                 :alt="book.title"
                 height="240"
-                cover
+                :cover="false"
                 class="book-cover"
+                style="object-fit: contain;"
               />
               
               <!-- Tag de status na capa do livro -->
@@ -122,12 +123,12 @@
               
               <div class="d-flex align-center justify-space-between mt-2">
                 <v-chip
-                  v-if="book.genre"
                   size="x-small"
                   class="genre-chip"
                   variant="flat"
+                  :color="book.genre ? 'default' : 'grey-lighten-1'"
                 >
-                  {{ book.genre }}
+                  {{ book.genre || 'Gênero desconhecido' }}
                 </v-chip>
                 
                 <span v-if="book.pageCount" class="text-caption pages-count">
@@ -372,12 +373,20 @@ const getStatusClass = (status: string | number): string => {
   background: rgb(var(--v-theme-surface));
   position: relative;
   height: 100%;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .book-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.book-card v-card-item {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .reading-glow {

@@ -121,6 +121,7 @@
 
               <!-- Datas de leitura -->
               <div v-if="selectedBook.status !== 0" class="reading-date mb-4">
+                <!-- Status "Estou Lendo" -->
                 <template v-if="selectedBook.status === 2">
                   <p class="font-weight-medium mb-1">Começou a ler em</p>
                   <v-text-field
@@ -131,7 +132,19 @@
                     @update:model-value="updateStartDate"
                   ></v-text-field>
                 </template>
+                
+                <!-- Status "Já Li" - Mostrar tanto data de início quanto data de conclusão -->
                 <template v-else-if="selectedBook.status === 1">
+                  <p class="font-weight-medium mb-1">Começou a ler em</p>
+                  <v-text-field
+                    v-model="startDateFormatted"
+                    type="date"
+                    variant="outlined"
+                    density="compact"
+                    class="mb-3"
+                    @update:model-value="updateStartDate"
+                  ></v-text-field>
+                  
                   <p class="font-weight-medium mb-1">Leitura concluída em</p>
                   <v-text-field
                     v-model="endDateFormatted"
@@ -177,9 +190,13 @@
               Descrição
             </h3>
             <v-card class="mb-6 pa-4 description-card" variant="outlined">
-              <p class="text-body-1 description-text">
-                {{ selectedBook.description || 'Sem descrição disponível.' }}
-              </p>
+              <div v-if="selectedBook.description" class="text-body-1 description-text">
+                {{ selectedBook.description }}
+              </div>
+              <div v-else class="text-body-1 no-description-text">
+                <v-icon class="mr-2" color="grey-lighten-1">mdi-information-outline</v-icon>
+                Este livro não possui descrição disponível.
+              </div>
             </v-card>
             
             <!-- Seção de frases favoritas - modificado para aparecer com o status correto -->
@@ -457,21 +474,49 @@ const readingStatus = computed(() => {
 
 // Carrega o livro quando o componente é montado
 onMounted(async () => {
-  const bookId = route.params.id as string;
-  await bookshelfStore.fetchBookDetails(bookId);
-  selectedBook.value = bookshelfStore.selectedBook;
+  let bookId = route.params.id as string;
   
-  // Carregando a avaliação, caso exista
-  if (selectedBook.value?.rating) {
-    bookRating.value = selectedBook.value.rating;
+  // Se não temos um ID na rota, tenta recuperar do localStorage
+  if (!bookId) {
+    bookId = localStorage.getItem('lastViewedBookId') || '';
+    
+    // Se encontramos um ID no localStorage, atualiza a URL sem recarregar
+    if (bookId) {
+      router.replace(`/book/${bookId}`);
+    } else {
+      // Se não encontrarmos nenhum ID, redireciona para a estante
+      router.push('/bookshelf');
+      return;
+    }
   }
   
-  // Definindo um status padrão se não houver
-  if (selectedBook.value.status === undefined || selectedBook.value.status === null) {
-    selectedBook.value.status = 0; // Quero ler
-  }
+  // Salva o ID atual no localStorage
+  localStorage.setItem('lastViewedBookId', bookId);
   
-  console.log('Status do livro:', selectedBook.value.status);
+  // Carrega o livro
+  try {
+    await bookshelfStore.fetchBookDetails(bookId);
+    selectedBook.value = bookshelfStore.selectedBook;
+    
+    // Carregando a avaliação, caso exista
+    if (selectedBook.value?.rating) {
+      bookRating.value = selectedBook.value.rating;
+    }
+    
+    // Definindo um status padrão se não houver
+    if (selectedBook.value && (selectedBook.value.status === undefined || selectedBook.value.status === null)) {
+      selectedBook.value.status = 0; // Quero ler
+    }
+    
+    // Se não conseguimos carregar o livro, redireciona para a estante
+    if (!selectedBook.value) {
+      router.push('/bookshelf');
+    }
+  } catch (error) {
+    console.error("Erro ao carregar detalhes do livro:", error);
+    showNotification("Erro ao carregar detalhes do livro", "error");
+    router.push('/bookshelf');
+  }
 });
 
 // Retorna a cor baseada no status de leitura
@@ -551,53 +596,52 @@ const updateReadingStatus = async (status: number) => {
   if (!bookshelfStore.user || !selectedBook.value) return;
   
   try {
-    const q = query(
-      collection(db, `users/${bookshelfStore.user.uid}/books`),
-      where("id", "==", selectedBook.value.id)
-    );
-    const querySnapshot = await getDocs(q);
+    // Data atual para usar como padrão
+    const today = new Date();
+    const formattedToday = formatDateForStorage(today);
+
+    // Preparar os dados para atualização
+    const updateData: any = { status };
     
-    if (!querySnapshot.empty) {
-      const docRef = doc(
-        db,
-        `users/${bookshelfStore.user.uid}/books`,
-        querySnapshot.docs[0].id
-      );
-      
-      // Preparar os dados para atualização
-      const updateData: any = { status };
-      
-      // Se o status é "Estou lendo" (2) e não tem data de início, adicionamos
-      if (status === 2 && !selectedBook.value.dataInicioLeitura) {
-        // Formatar a data como DD/MM/YYYY
-        const today = new Date();
-        const formattedDate = formatDateForStorage(today);
-        updateData.dataInicioLeitura = formattedDate;
-        selectedBook.value.dataInicioLeitura = formattedDate;
-        console.log(`Status atualizado para "Estou lendo" - Data início: ${formattedDate}`);
+    // Se o status é "Estou lendo" (2)
+    if (status === 2) {
+      // Adicionar data de início se não existir
+      if (!selectedBook.value.dataInicioLeitura) {
+        updateData.dataInicioLeitura = formattedToday;
       }
-      
-      // Se o status é "Já li" (1) e não tem data de término, adicionamos
-      if (status === 1 && !selectedBook.value.dataFinalLeitura) {
-        // Formatar a data como DD/MM/YYYY
-        const today = new Date();
-        const formattedDate = formatDateForStorage(today);
-        updateData.dataFinalLeitura = formattedDate;
-        selectedBook.value.dataFinalLeitura = formattedDate;
-        console.log(`Status atualizado para "Já li" - Data final: ${formattedDate}`);
-      }
-      
-      // Log para depuração
-      console.log("Atualizando livro com dados:", updateData);
-      
-      await setDoc(docRef, updateData, { merge: true });
-      
-      // Atualizar a lista de livros para manter a consistência
-      await bookshelfStore.fetchBooks();
-      
-      const statusLabel = statusOptions.find(o => o.value === status)?.label;
-      showNotification(`Status atualizado para "${statusLabel}"`, "success");
     }
+    
+    // Se o status é "Já li" (1)
+    if (status === 1) {
+      // Adicionar data de conclusão se não existir
+      if (!selectedBook.value.dataFinalLeitura) {
+        updateData.dataFinalLeitura = formattedToday;
+      }
+      
+      // Garantir que também tenha uma data de início
+      if (!selectedBook.value.dataInicioLeitura) {
+        // Se não tem data de início, usamos uma data 1 mês antes da data de conclusão
+        const startDate = new Date(today);
+        startDate.setMonth(today.getMonth() - 1);
+        const formattedStart = formatDateForStorage(startDate);
+        
+        updateData.dataInicioLeitura = formattedStart;
+      }
+    }
+    
+    // Usar o novo método updateBook para garantir que os dados são atualizados em toda a aplicação
+    await bookshelfStore.updateBook(selectedBook.value.id, updateData);
+    
+    // Atualizar localmente o selectedBook para refletir as mudanças
+    if (updateData.dataInicioLeitura) {
+      selectedBook.value.dataInicioLeitura = updateData.dataInicioLeitura;
+    }
+    if (updateData.dataFinalLeitura) {
+      selectedBook.value.dataFinalLeitura = updateData.dataFinalLeitura;
+    }
+    
+    const statusLabel = statusOptions.find(o => o.value === status)?.label;
+    showNotification(`Status atualizado para "${statusLabel}"`, "success");
   } catch (err: any) {
     console.error("Erro ao atualizar status:", err);
     showNotification("Erro ao atualizar status", "error");
@@ -609,24 +653,12 @@ const updateStartDate = async () => {
   if (!bookshelfStore.user || !selectedBook.value) return;
   
   try {
-    const q = query(
-      collection(db, `users/${bookshelfStore.user.uid}/books`),
-      where("id", "==", selectedBook.value.id)
-    );
-    const querySnapshot = await getDocs(q);
+    // Usar o método updateBook para garantir que a atualização seja refletida em toda a aplicação
+    await bookshelfStore.updateBook(selectedBook.value.id, {
+      dataInicioLeitura: selectedBook.value.dataInicioLeitura
+    });
     
-    if (!querySnapshot.empty) {
-      const docRef = doc(
-        db,
-        `users/${bookshelfStore.user.uid}/books`,
-        querySnapshot.docs[0].id
-      );
-      
-      // Usar o campo dataInicioLeitura que já está no formato DD/MM/YYYY
-      await setDoc(docRef, { dataInicioLeitura: selectedBook.value.dataInicioLeitura }, { merge: true });
-      
-      showNotification("Data de início de leitura atualizada!", "success");
-    }
+    showNotification("Data de início de leitura atualizada!", "success");
   } catch (err: any) {
     console.error("Erro ao atualizar data de início:", err);
     showNotification("Erro ao atualizar data de início", "error");
@@ -638,24 +670,12 @@ const updateEndDate = async () => {
   if (!bookshelfStore.user || !selectedBook.value) return;
   
   try {
-    const q = query(
-      collection(db, `users/${bookshelfStore.user.uid}/books`),
-      where("id", "==", selectedBook.value.id)
-    );
-    const querySnapshot = await getDocs(q);
+    // Usar o método updateBook para garantir que a atualização seja refletida em toda a aplicação
+    await bookshelfStore.updateBook(selectedBook.value.id, {
+      dataFinalLeitura: selectedBook.value.dataFinalLeitura
+    });
     
-    if (!querySnapshot.empty) {
-      const docRef = doc(
-        db,
-        `users/${bookshelfStore.user.uid}/books`,
-        querySnapshot.docs[0].id
-      );
-      
-      // Usar o campo dataFinalLeitura que já está no formato DD/MM/YYYY
-      await setDoc(docRef, { dataFinalLeitura: selectedBook.value.dataFinalLeitura }, { merge: true });
-      
-      showNotification("Data de conclusão de leitura atualizada!", "success");
-    }
+    showNotification("Data de conclusão de leitura atualizada!", "success");
   } catch (err: any) {
     console.error("Erro ao atualizar data de conclusão:", err);
     showNotification("Erro ao atualizar data de conclusão", "error");
@@ -903,7 +923,7 @@ const showQuotesSection = computed(() => {
 .description-card {
   background: rgb(var(--v-theme-surface));
   border-radius: 12px;
-  height: 100%;
+  height: 300px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
@@ -914,6 +934,13 @@ const showQuotesSection = computed(() => {
 }
 
 .description-text {
+  line-height: 1.8;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.no-description-text {
+  display: flex;
+  align-items: center;
   line-height: 1.8;
   color: rgb(var(--v-theme-on-surface));
 }

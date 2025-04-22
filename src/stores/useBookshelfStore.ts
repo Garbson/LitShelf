@@ -81,7 +81,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         const userRef = doc(db, 'users', firebaseUser.uid)
         const userSnap = await getDoc(userRef)
         if (userSnap.exists()) {
-          console.log('Usuário recuperado:', userSnap.data())
           user.value = { uid: firebaseUser.uid, ...userSnap.data() } as User
         } else {
           error.value = 'Usuário não encontrado no banco de dados.'
@@ -101,12 +100,12 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           uid: firebaseUser.uid,
           name: firebaseUser.displayName || '',
         }
-        console.log('Usuário autenticado:', user.value)
+
         await fetchUser()
         await fetchBooks() // Now fetchBooks is called after authentication
       } else {
         user.value = null
-        console.log('Nenhum usuário autenticado.')
+     
         books.value = [] // Clear books when logged out
       }
     })
@@ -121,7 +120,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     isLoading.value = true
     error.value = null
     try {
-      console.log('user.value.uid:', user.value.uid)
+
       const booksQuery = collection(db, `users/${user.value.uid}/books`)
       const booksSnapshot = await getDocs(booksQuery)
       const fetchedBooks = booksSnapshot.docs.map((doc) => ({
@@ -141,7 +140,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       )
 
       books.value = booksWithDetails
-      console.log('Livros recuperados:', books.value)
+
     } catch (err: any) {
       console.error('Erro ao buscar livros:', err)
       error.value = 'Erro ao buscar livros.'
@@ -196,7 +195,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           await updateDoc(bookRef, { status: 0 })
         }
         
-        console.log('Detalhes do livro carregados:', selectedBook.value)
+    
       } else {
         error.value = 'Livro não encontrado.'
         console.error('Livro não encontrado.')
@@ -210,11 +209,11 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   // Add a Book
   const addBook = async (bookData: any) => {
     error.value = null;
-    console.log('addBook - Dados recebidos:', JSON.stringify(bookData));
+
     if (!user.value) return;
     
     try {
-      console.log('addBook - Usuário:', user.value);
+
       const booksRef = collection(db, `users/${user.value.uid}/books`);
       
       // Buscar detalhes adicionais se necessário
@@ -230,12 +229,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       // Converter valores de status para garantir consistência
       bookToSave.status = Number(bookToSave.status || 0);
       
-      // Garantir que as datas estão no formato correto (DD/MM/YYYY)
-      console.log('addBook - Verificando datas antes de salvar:', 
-        'Status:', bookToSave.status,
-        'Data início:', bookToSave.dataInicioLeitura, 
-        'Data final:', bookToSave.dataFinalLeitura);
-      
+
       const docRef = await addDoc(booksRef, bookToSave);
       
       // Adicionar o livro à lista local
@@ -245,7 +239,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       };
       
       books.value.push(newBook);
-      console.log('addBook - Livro salvo com sucesso:', newBook);
+  
     } catch (err: any) {
       console.error('Erro ao adicionar livro:', err);
       error.value = 'Erro ao adicionar livro.';
@@ -484,6 +478,32 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
 
+  // Método genérico para atualizar qualquer campo de um livro
+  const updateBook = async (bookId: string, updateData: any) => {
+    error.value = null
+    if (!user.value) return
+    
+    try {
+      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
+      await updateDoc(bookRef, updateData)
+      
+      // Atualizar estado local na lista de books
+      const bookIndex = books.value.findIndex(book => book.id === bookId)
+      if (bookIndex !== -1) {
+        books.value[bookIndex] = { ...books.value[bookIndex], ...updateData }
+      }
+      
+      // Atualizar o livro selecionado se for o mesmo
+      if (selectedBook.value?.id === bookId) {
+        selectedBook.value = { ...selectedBook.value, ...updateData }
+      }
+    } catch (err: any) {
+      console.error('Erro ao atualizar livro:', err)
+      error.value = 'Erro ao atualizar livro.'
+      throw err
+    }
+  }
+
   return {
     user,
     books,
@@ -504,6 +524,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     updateBookRating,
     updateReadingProgress,
     updateBookNotes,
+    updateBook,
     initAuthListener,
   }
 })
