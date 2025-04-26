@@ -277,7 +277,7 @@ import { useBookshelfStore } from "@/stores/useBookshelfStore";
 import { useDashboardStore } from "@/stores/useDashboardStore";
 import { useRecommendationStore } from "@/stores/useRecommendationStore";
 import { Chart, registerables } from 'chart.js';
-import { computed, onMounted, ref, watch, onActivated } from "vue";
+import { computed, onActivated, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 // Registrar componentes do Chart.js

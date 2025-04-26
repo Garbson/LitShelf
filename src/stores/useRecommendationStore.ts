@@ -155,7 +155,7 @@ export const useRecommendationStore = defineStore('recommendation', () => {
       }
       
       // Se chegou aqui, a tabela existe, tentamos a consulta completa
-      let query = supabase
+      const query = supabase
         .from('recommendations')
         .select(`
           id,

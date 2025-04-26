@@ -1,7 +1,7 @@
 // src/stores/useFriendsStore.ts
-import { supabase } from '../supabase';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { supabase } from '../supabase';
 import { useAuthStore } from './useAuthStore.js';
 
 // Define tipos para as amizades e solicitações

@@ -123,8 +123,8 @@
 
 <script lang="ts" setup>
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useFriendsStore } from '@/stores/useFriendsStore';
 import { useRecommendationStore } from '@/stores/useRecommendationStore';
-import { useFriendsStore } from '@/stores/useFriendsStore'; 
 import { onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
