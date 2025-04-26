@@ -83,11 +83,11 @@
             width="280"
             elevation="2"
             @click="goToBookDetails(book.id)"
-            :class="{'reading-glow': book.status === '2'}"
+            :class="{'reading-glow': book.status === 2 || book.status === '2'}"
           >
             <div class="book-cover-container">
               <v-img
-                :src="book.coverImage || '/placeholder-book.png'"
+                :src="book.cover_image_url || '/placeholder-book.png'"
                 :alt="book.title"
                 height="240"
                 :cover="false"
@@ -95,19 +95,24 @@
                 style="object-fit: contain;"
               />
               
-              <!-- Tag de status na capa do livro -->
-              <div class="status-ribbon" :class="getStatusClass(book.status)">
-                <span class="status-text">
-                  <v-icon size="small" class="me-1">{{ getStatusIcon(book.status) }}</v-icon>
-                  {{ getStatusLabel(book.status) }}
-                </span>
-              </div>
-              
               <!-- Avaliação por estrelas se existir -->
               <div v-if="book.rating" class="rating-badge">
                 <v-icon color="amber" size="small">mdi-star</v-icon>
                 <span>{{ book.rating }}</span>
               </div>
+            </div>
+
+            <!-- Tag de status como v-chip abaixo da imagem -->
+            <div class="status-container">
+              <v-chip
+                class="status-chip"
+                :color="getStatusColor(book.status)"
+                text-color="white"
+                size="small"
+              >
+                <v-icon start size="small">{{ getStatusIcon(book.status) }}</v-icon>
+                {{ getStatusLabel(book.status) }}
+              </v-chip>
             </div>
 
             <v-card-item>
@@ -183,10 +188,10 @@
 </template>
 
 <script lang="ts" setup>
-import { useBookshelfStore } from "@/stores/useBookshelfStore";
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
 import BaseTextField from '@/components/BaseTextField.vue';
+import { useBookshelfStore } from "@/stores/useBookshelfStore";
+import { computed, onActivated, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 const bookshelfStore = useBookshelfStore();
 const router = useRouter();
@@ -220,9 +225,23 @@ const sortOptions = [
 
 // Livros com propriedades reativas
 const computedBooks = computed(() => {
-  return bookshelfStore.books.map((book, index) =>
-    reactive({ ...book, isHovered: false, index })
-  );
+  // Verificar se há status em cache no localStorage
+  const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
+  
+  return bookshelfStore.books.map((book, index) => {
+    // Se houver um status em cache para este livro, usá-lo em vez do status do banco de dados
+    if (bookStatusCache[book.id] !== undefined) {
+      const cachedStatus = Number(bookStatusCache[book.id]);
+      console.log(`Usando status em cache para o livro ${book.id}: ${cachedStatus}`);
+      return reactive({ 
+        ...book, 
+        status: cachedStatus,
+        isHovered: false, 
+        index 
+      });
+    }
+    return reactive({ ...book, isHovered: false, index });
+  });
 });
 
 // Livros filtrados e ordenados
@@ -311,12 +330,49 @@ watch([searchQuery, selectedFilter, sortOption], () => {
   currentPage.value = 1;
 });
 
+// Recarregar livros ao montar o componente
 onMounted(() => {
-  bookshelfStore.initAuthListener();
+  refreshBookshelf();
+});
+
+// Adicionar onActivated para garantir que os dados sejam atualizados 
+// quando o usuário retorna à página da estante
+onActivated(() => {
+  console.log("BookshelfView ativado - recarregando livros...");
+  refreshBookshelf();
 });
 
 const goToBookDetails = (bookId: string) => {
   router.push(`/book/${bookId}`);
+};
+
+// Método para atualizar a estante com os status mais recentes
+const refreshBookshelf = async () => {
+  console.log("Atualizando estante com status mais recentes...");
+  
+  // Buscar os livros do servidor
+  await bookshelfStore.fetchBooks();
+  
+  // Forçar a reavaliação do computed 'computedBooks'
+  // mesmo que os dados do servidor não tenham mudado
+  // isso garantirá que os status em cache sejam aplicados
+  const tempVar = ref(0);
+  tempVar.value++;
+  
+  // Atualizar o status na store diretamente baseado no cache
+  const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
+  
+  // Para cada livro na store, verificar se há um status em cache
+  bookshelfStore.books.forEach(book => {
+    if (bookStatusCache[book.id] !== undefined) {
+      const cachedStatus = Number(bookStatusCache[book.id]);
+      // Se o status em cache for diferente do status na store, atualizá-lo
+      if (Number(book.status) !== cachedStatus) {
+        console.log(`Atualizando status do livro ${book.id} na store: ${book.status} -> ${cachedStatus}`);
+        book.status = cachedStatus;
+      }
+    }
+  });
 };
 
 // Retorna a cor do chip de status
@@ -446,37 +502,17 @@ const getStatusClass = (status: string | number): string => {
   transform: scale(1.05);
 }
 
-/* Tag de status estilizada como fita */
-.status-ribbon {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  padding: 6px 10px;
-  text-align: center;
+/* Tag de status estilizada como v-chip */
+.status-chip {
   font-weight: 500;
   letter-spacing: 0.5px;
   font-size: 0.85rem;
-  color: white;
-  backdrop-filter: blur(4px);
 }
 
-.wishlist-status {
-  background-color: rgba(var(--v-theme-grey), 0.8);
-}
-
-.reading-status {
-  background-color: rgba(var(--v-theme-info), 0.8);
-}
-
-.completed-status {
-  background-color: rgba(var(--v-theme-success), 0.8);
-}
-
-.status-text {
+.status-container {
   display: flex;
-  align-items: center;
   justify-content: center;
+  margin-top: 8px;
 }
 
 .rating-badge {

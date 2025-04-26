@@ -9,8 +9,8 @@
         </router-link>
       </div>
 
-      <!-- Botões de navegação centralizados -->
-      <div class="navbar-menu navbar-menu-center">
+      <!-- Botões de navegação centralizados (visíveis apenas em desktop) -->
+      <div class="navbar-menu navbar-menu-center d-none d-md-flex">
         <v-btn 
           variant="text" 
           color="accent" 
@@ -62,6 +62,17 @@
 
       <!-- Menu do usuário à direita -->
       <div class="navbar-menu navbar-menu-right">
+        <!-- Botão menu mobile (visível apenas em mobile) -->
+        <v-btn
+          icon
+          variant="text"
+          color="accent"
+          @click="mobileMenuOpen = !mobileMenuOpen"
+          class="mobile-menu-btn d-md-none"
+        >
+          <v-icon>{{ mobileMenuOpen ? 'mdi-close' : 'mdi-menu' }}</v-icon>
+        </v-btn>
+        
         <v-btn 
           icon
           variant="text"
@@ -120,6 +131,66 @@
       </div>
     </div>
     
+    <!-- Menu móvel (visível quando aberto) -->
+    <v-expand-transition>
+      <div v-if="mobileMenuOpen" class="mobile-menu d-md-none">
+        <v-list>
+          <v-list-item 
+            to="/bookshelf" 
+            :active="isActiveRoute('/bookshelf')"
+            @click="mobileMenuOpen = false"
+          >
+            <template v-slot:prepend>
+              <v-icon color="accent">mdi-bookshelf</v-icon>
+            </template>
+            <v-list-item-title>Minha Estante</v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item 
+            to="/addBook" 
+            :active="isActiveRoute('/addBook')"
+            @click="mobileMenuOpen = false"
+          >
+            <template v-slot:prepend>
+              <v-icon color="accent">mdi-book-plus</v-icon>
+            </template>
+            <v-list-item-title>Adicionar Livro</v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item 
+            to="/dashboard" 
+            :active="isActiveRoute('/dashboard')"
+            @click="mobileMenuOpen = false"
+          >
+            <template v-slot:prepend>
+              <v-icon color="accent">mdi-chart-box</v-icon>
+            </template>
+            <v-list-item-title>Dashboard</v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item 
+            to="/friends" 
+            :active="isActiveRoute('/friends')"
+            @click="mobileMenuOpen = false"
+          >
+            <template v-slot:prepend>
+              <v-icon color="accent">mdi-account-group</v-icon>
+            </template>
+            <v-list-item-title>Amigos</v-list-item-title>
+          </v-list-item>
+          
+          <v-divider class="my-2"></v-divider>
+          
+          <v-list-item @click="toggleDarkMode">
+            <template v-slot:prepend>
+              <v-icon color="accent">{{ isDarkMode ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+            </template>
+            <v-list-item-title>{{ isDarkMode ? 'Modo Claro' : 'Modo Escuro' }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </div>
+    </v-expand-transition>
+    
     <!-- Dialog de confirmação de logout -->
     <v-dialog v-model="confirmLogout" max-width="400" transition="dialog-top-transition">
       <v-card class="logout-dialog">
@@ -150,6 +221,7 @@ const theme = useTheme();
 const confirmLogout = ref(false);
 const isDarkMode = ref(false);
 const hasNotifications = ref(false); // Simulação de notificações
+const mobileMenuOpen = ref(false); // Controle do menu móvel
 
 // Nome de exibição do usuário
 const userDisplayName = computed(() => {
@@ -179,6 +251,19 @@ onMounted(() => {
     isDarkMode.value = true;
     theme.global.name.value = 'customDarkTheme';
   }
+  
+  // Fechar o menu móvel ao mudar de rota
+  router.beforeEach(() => {
+    mobileMenuOpen.value = false;
+    return true;
+  });
+  
+  // Fechar o menu móvel ao clicar fora dele
+  document.addEventListener('click', (e) => {
+    if (mobileMenuOpen.value && !e.target.closest('.mobile-menu') && !e.target.closest('.mobile-menu-btn')) {
+      mobileMenuOpen.value = false;
+    }
+  });
 });
 
 // Alternar entre modo claro/escuro
@@ -350,6 +435,30 @@ const goToSettings = () => {
   overflow: hidden;
 }
 
+/* Menu móvel */
+.mobile-menu {
+  background-color: var(--v-primary-base);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+}
+
+.mobile-menu .v-list-item {
+  min-height: 56px;
+  transition: all 0.2s ease;
+}
+
+.mobile-menu .v-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-menu .v-list-item--active {
+  background-color: rgba(255, 204, 128, 0.2);
+}
+
 /* Responsividade */
 @media (max-width: 960px) {
   .nav-button span {
@@ -368,7 +477,7 @@ const goToSettings = () => {
 
 @media (max-width: 600px) {
   .navbar-content {
-    padding: 0.5rem;
+    padding: 0.5rem 1rem;
   }
   
   .logo-text {
@@ -377,6 +486,10 @@ const goToSettings = () => {
   
   .username-text {
     display: none;
+  }
+  
+  .mobile-menu-btn {
+    margin-right: 4px;
   }
 }
 </style>

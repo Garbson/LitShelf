@@ -1,11 +1,8 @@
 // src/stores/useBookshelfStore.ts
-import { getAuth, onAuthStateChanged } from 'firebase/auth'
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore'
-import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
-import { db } from '../firebase.ts'
-
-const auth = getAuth()
+import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
+import { supabase } from '../supabase';
+import { useAuthStore } from './useAuthStore';
 
 // Enumeração para Status de Leitura
 export enum ReadingStatus {
@@ -17,38 +14,35 @@ export enum ReadingStatus {
 // Interface para o Livro
 interface Book {
   id: string;
+  user_id: string;
   title: string;
   author: string;
-  coverImage: string;
+  cover_image_url?: string;
   description?: string;
-  pageCount?: number;
+  page_count?: number;
   genre?: string;
-  status?: ReadingStatus | number; // Status de leitura como valor numérico
-  rating?: number; // Avaliação de 1-5 estrelas
-  currentPage?: number; // Página atual (para livros em leitura)
-  dateStarted?: Date; // Data de início da leitura
-  dateCompleted?: Date; // Data de conclusão da leitura
-  notes?: string; // Notas pessoais sobre o livro
-  // ... outras propriedades do livro
-}
-
-// Interface para o Usuário
-interface User {
-  uid: string;
-  name: string;
-  friends?: string[]; // IDs dos amigos
+  status?: ReadingStatus | number;
+  rating?: number;
+  current_page?: number;
+  started_reading_at?: string; // ISO date string
+  finished_reading_at?: string; // ISO date string
+  notes?: string;
+  added_at?: string;
+  updated_at?: string;
+  google_book_id?: string;
 }
 
 export const useBookshelfStore = defineStore('bookshelf', () => {
   // Estado
-  const user = ref<User | null>(null)
   const books = ref<Book[]>([])
-  const selectedBook = ref<any>(null)
+  const selectedBook = ref<Book | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const authStore = useAuthStore()
 
   // Computed
-  const isAuthenticated = computed(() => !!user.value)
+  const isAuthenticated = computed(() => authStore.isAuthenticated)
+  const userId = computed(() => authStore.userId)
   
   // Filtragem de livros por status
   const booksByStatus = computed(() => {
@@ -60,8 +54,8 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
     
     books.value.forEach(book => {
-      if (book.status) {
-        result[book.status].push(book)
+      if (typeof book.status === 'number') {
+        result[book.status as ReadingStatus].push(book)
       } else {
         // Se não tiver status, considere como "wishlist"
         result[ReadingStatus.WISHLIST].push(book)
@@ -72,75 +66,83 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     return result
   })
 
-  // Fetch User Data
-  const fetchUser = async () => {
-    error.value = null
-    const firebaseUser = auth.currentUser
-    if (firebaseUser) {
-      try {
-        const userRef = doc(db, 'users', firebaseUser.uid)
-        const userSnap = await getDoc(userRef)
-        if (userSnap.exists()) {
-          user.value = { uid: firebaseUser.uid, ...userSnap.data() } as User
-        } else {
-          error.value = 'Usuário não encontrado no banco de dados.'
-        }
-      } catch (err: any) {
-        console.error('Erro ao buscar usuário:', err)
-        error.value = 'Erro ao buscar usuário.'
-      }
-    }
-  }
-
-  // Initialize Authentication Listener
-  const initAuthListener = () => {
-    onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        user.value = {
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || '',
-        }
-
-        await fetchUser()
-        await fetchBooks() // Now fetchBooks is called after authentication
-      } else {
-        user.value = null
-     
-        books.value = [] // Clear books when logged out
-      }
-    })
-  }
-
   // Fetch Books for the Logged User
   const fetchBooks = async () => {
-    if (!user.value) {
+    if (!userId.value) {
       console.warn('Tentativa de buscar livros sem usuário autenticado.')
       return
     }
+    
     isLoading.value = true
     error.value = null
+    
     try {
+      console.log('Buscando livros para usuário:', userId.value)
+      
+      // Consulta ao Supabase para buscar todos os livros do usuário
+      const { data, error: supabaseError } = await supabase
+        .from('books')
+        .select('*')
+        .eq('user_id', userId.value)
+      
+      if (supabaseError) {
+        console.error('Erro ao buscar livros do Supabase:', supabaseError)
+        throw supabaseError
+      }
 
-      const booksQuery = collection(db, `users/${user.value.uid}/books`)
-      const booksSnapshot = await getDocs(booksQuery)
-      const fetchedBooks = booksSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Book[]
+      if (data && data.length > 0) {
+        console.log(`Encontrados ${data.length} livros`)
+        
+        // Fetch additional data for each book if needed
+        const booksWithDetails = await Promise.all(
+          data.map(async (book) => {
+            // Mapear datas ISO para formato brasileiro (DD/MM/YYYY)
+            const formatDate = (dateStr: string | null): string | null => {
+              if (!dateStr) return null;
+              const date = new Date(dateStr);
+              return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+            }
+            
+            // Convertendo datas para o formato brasileiro para exibição
+            const bookWithDates = {
+              ...book,
+              dataInicioLeitura: formatDate(book.started_reading_at),
+              dataFinalLeitura: formatDate(book.finished_reading_at),
+            }
+            
+            // Adicionando campo de compatibilidade para a imagem
+            if (book.cover_image_url) {
+              bookWithDates.coverImage = book.cover_image_url;
+            }
+            
+            if (!book.description || !book.page_count || !book.genre) {
+              console.log(`Buscando detalhes adicionais para o livro: ${book.title}`)
+              const bookDetails = await fetchBookDetailsFromGoogle(book.title, book.author)
+              
+              // Atualizar o livro no Supabase com os detalhes obtidos
+              if (bookDetails.description || bookDetails.page_count || bookDetails.genre) {
+                await supabase
+                  .from('books')
+                  .update({
+                    description: bookDetails.description,
+                    page_count: bookDetails.page_count,
+                    genre: bookDetails.genre
+                  })
+                  .eq('id', book.id)
+              }
+              
+              return { ...bookWithDates, ...bookDetails }
+            }
+            return bookWithDates
+          })
+        )
 
-      // Fetch additional data for each book
-      const booksWithDetails = await Promise.all(
-        fetchedBooks.map(async (book) => {
-          if (!book.description || !book.pageCount || !book.genre) {
-            const bookDetails = await fetchBookDetailsFromGoogle(book.title, book.author)
-            return { ...book, ...bookDetails }
-          }
-          return book
-        })
-      )
-
-      books.value = booksWithDetails
-
+        books.value = booksWithDetails
+        console.log('Todos os livros carregados com sucesso')
+      } else {
+        books.value = []
+        console.log('Nenhum livro encontrado para este usuário')
+      }
     } catch (err: any) {
       console.error('Erro ao buscar livros:', err)
       error.value = 'Erro ao buscar livros.'
@@ -152,149 +154,281 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   // Fetch Details of a Specific Book
   const fetchBookDetails = async (bookId: string) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
+    
     try {
-      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
-      const bookSnap = await getDoc(bookRef)
-      if (bookSnap.exists()) {
-        const bookData = bookSnap.data() as Book
-        
-        // Buscar os detalhes do Google se necessário
+      // Buscar o livro no Supabase
+      const { data: book, error: bookError } = await supabase
+        .from('books')
+        .select('*')
+        .eq('id', bookId)
+        .eq('user_id', userId.value)
+        .single()
+      
+      if (bookError) throw bookError
+      
+      if (book) {
+        // Buscar detalhes adicionais do Google se necessário
         let bookDetails = {}
-        if (!bookData.description || !bookData.pageCount || !bookData.genre) {
-          bookDetails = await fetchBookDetailsFromGoogle(bookData.title, bookData.author)
-          await updateDoc(bookRef, bookDetails)
-        }
-        
-        // Buscar frases da subcoleção
-        const quotes: string[] = []
-        const quotePages: (number | null)[] = []
-        const phasesQuery = collection(db, `users/${user.value.uid}/books/${bookId}/phases`)
-        const phasesSnapshot = await getDocs(phasesQuery)
-        
-        phasesSnapshot.forEach((phaseDoc) => {
-          const phaseData = phaseDoc.data()
-          if (phaseData.text) {
-            quotes.push(phaseData.text)
-            quotePages.push(phaseData.page || null)
+        if (!book.description || !book.page_count || !book.genre) {
+          bookDetails = await fetchBookDetailsFromGoogle(book.title, book.author)
+          
+          // Atualizar o livro no Supabase com os detalhes obtidos
+          if (Object.keys(bookDetails).length > 0) {
+            await supabase
+              .from('books')
+              .update(bookDetails)
+              .eq('id', book.id)
           }
-        })
-        
-        // Combinar todos os dados
-        selectedBook.value = { 
-          id: bookSnap.id, 
-          ...bookData, 
-          ...bookDetails,
-          quotes: quotes,
-          quotePages: quotePages
         }
+        
+        // Buscar frases/citações relacionadas a este livro
+        const { data: quotes, error: quotesError } = await supabase
+          .from('quotes')
+          .select('*')
+          .eq('book_id', bookId)
+          .eq('user_id', userId.value)
+        
+        if (quotesError) throw quotesError
+        
+        // Preparar arrays de citações e páginas
+        const quoteTexts: string[] = []
+        const quotePages: (number | null)[] = []
+        
+        if (quotes) {
+          quotes.forEach(quote => {
+            quoteTexts.push(quote.text)
+            quotePages.push(quote.page)
+          })
+        }
+        
+        // Converter datas ISO para formato brasileiro
+        const formatDate = (dateStr: string | null): string | null => {
+          if (!dateStr) return null;
+          const date = new Date(dateStr);
+          return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+        }
+        
+        // Garantir que temos as propriedades necessárias
+        const mappedBook = {
+          ...book,
+          coverImage: book.cover_image_url, // Para retrocompatibilidade
+          ...bookDetails,
+          quotes: quoteTexts,
+          quotePages: quotePages,
+          quotesData: quotes || [], // Manter os dados completos para referência
+          
+          // Mapear datas ISO para formato brasileiro (DD/MM/YYYY)
+          dataInicioLeitura: formatDate(book.started_reading_at),
+          dataFinalLeitura: formatDate(book.finished_reading_at),
+        }
+        
+        // Adicionar a seleção atual
+        selectedBook.value = mappedBook
         
         // Garantir que o status está definido
         if (selectedBook.value.status === undefined || selectedBook.value.status === null) {
           selectedBook.value.status = 0 // Definir como "Quero Ler" como padrão
-          await updateDoc(bookRef, { status: 0 })
+          await supabase
+            .from('books')
+            .update({ status: 0 })
+            .eq('id', bookId)
         }
-        
-    
+
+        return selectedBook.value
       } else {
         error.value = 'Livro não encontrado.'
         console.error('Livro não encontrado.')
+        return null
       }
     } catch (err: any) {
       console.error('Erro ao buscar detalhes do livro:', err)
       error.value = 'Erro ao buscar detalhes do livro.'
+      return null
     }
   }
 
   // Add a Book
   const addBook = async (bookData: any) => {
-    error.value = null;
-
-    if (!user.value) return;
+    error.value = null
     
     try {
-
-      const booksRef = collection(db, `users/${user.value.uid}/books`);
+      // Verificar autenticação
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        error.value = 'Sessão expirada. Faça login novamente.';
+        console.error('Sem sessão ativa no Supabase');
+        throw new Error('Sem sessão ativa');
+      }
+      
+      const currentUser = sessionData.session.user;
+      if (!currentUser) {
+        error.value = 'Usuário não encontrado na sessão atual.';
+        console.error('Usuário não encontrado na sessão');
+        throw new Error('Usuário não encontrado');
+      }
+      
+      console.log('Usuário autenticado:', currentUser.id);
       
       // Buscar detalhes adicionais se necessário
       const bookDetails = await fetchBookDetailsFromGoogle(bookData.title, bookData.author);
       
       // Preparar o objeto com todos os dados do livro
       const bookToSave = {
-        ...bookData,
-        ...bookDetails,
-        addedAt: new Date()
-      };
+        user_id: currentUser.id, // Usar ID diretamente da sessão
+        title: bookData.title,
+        author: bookData.author,
+        cover_image_url: bookData.coverImage || bookData.cover_image_url,
+        description: bookData.description || bookDetails.description,
+        page_count: bookData.pageCount || bookData.page_count || bookDetails.page_count,
+        genre: bookData.genre || bookDetails.genre,
+        status: Number(bookData.status || 0),
+        google_book_id: bookData.googleBookId || bookData.google_book_id,
+        added_at: new Date().toISOString(),
+        started_reading_at: bookData.dataInicioLeitura ? new Date(bookData.dataInicioLeitura.split('/').reverse().join('-')).toISOString() : null,
+        finished_reading_at: bookData.dataFinalLeitura ? new Date(bookData.dataFinalLeitura.split('/').reverse().join('-')).toISOString() : null
+      }
       
-      // Converter valores de status para garantir consistência
-      bookToSave.status = Number(bookToSave.status || 0);
+      // Log para depuração
+      console.log('Adicionando livro:', {
+        título: bookToSave.title,
+        id_usuário: bookToSave.user_id,
+        status: bookToSave.status
+      });
       
-
-      const docRef = await addDoc(booksRef, bookToSave);
+      // Inserir no Supabase
+      const { data, error: supabaseError } = await supabase
+        .from('books')
+        .insert([bookToSave])
+        .select();
       
-      // Adicionar o livro à lista local
-      const newBook = { 
-        id: docRef.id,
-        ...bookToSave
-      };
+      if (supabaseError) {
+        console.error('Erro do Supabase ao adicionar livro:', {
+          código: supabaseError.code,
+          mensagem: supabaseError.message,
+          detalhes: supabaseError.details
+        });
+        throw supabaseError;
+      }
       
-      books.value.push(newBook);
-  
+      console.log('Livro adicionado com sucesso:', data?.[0]?.id);
+      
+      if (data && data[0]) {
+        // Adicionar o livro à lista local
+        books.value.push(data[0]);
+        return data[0].id;
+      }
     } catch (err: any) {
       console.error('Erro ao adicionar livro:', err);
-      error.value = 'Erro ao adicionar livro.';
+      error.value = `Erro ao adicionar livro: ${err.message || JSON.stringify(err)}`;
+      throw err;
     }
   }
 
-  // Add a Phase to a Book
+  // Add a Quote to a Book
   const addPhase = async (bookId: string, phaseData: { text: string; page: number | null }) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
+    
     try {
-      const phasesRef = collection(db, `users/${user.value.uid}/books/${bookId}/phases`)
-      const docRef = await addDoc(phasesRef, {
-        ...phaseData,
-        addedAt: new Date(),
-      })
+      console.log("Inserindo citação para o livro:", bookId);
+      console.log("Usuário ID:", userId.value);
+      console.log("Dados da citação:", phaseData);
+      
+      // Verificar se já existe uma citação igual para evitar duplicatas
+      const { data: existingQuotes, error: checkError } = await supabase
+        .from('quotes')
+        .select('*')
+        .eq('book_id', bookId)
+        .eq('user_id', userId.value)
+        .eq('text', phaseData.text);
+      
+      if (checkError) {
+        console.error("Erro ao verificar citações existentes:", checkError);
+      } else if (existingQuotes && existingQuotes.length > 0) {
+        console.log("Citação já existe, não será adicionada novamente:", existingQuotes[0]);
+        return existingQuotes[0].id;
+      }
+      
+      // Inserir a citação no Supabase apenas se não existir
+      const { data, error: supabaseError } = await supabase
+        .from('quotes')
+        .insert([{
+          user_id: userId.value,
+          book_id: bookId,
+          text: phaseData.text,
+          page: phaseData.page,
+          added_at: new Date().toISOString()
+        }])
+        .select();
+      
+      if (supabaseError) {
+        console.error("Erro completo ao inserir citação:", supabaseError);
+        throw supabaseError;
+      }
+      
+      console.log("Citação adicionada com sucesso:", data);
       
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value && selectedBook.value.id === bookId) {
-        if (!selectedBook.value.quotes) selectedBook.value.quotes = []
-        if (!selectedBook.value.quotePages) selectedBook.value.quotePages = []
+        if (!selectedBook.value.quotes) selectedBook.value.quotes = [];
+        if (!selectedBook.value.quotePages) selectedBook.value.quotePages = [];
+        if (!selectedBook.value.quotesData) selectedBook.value.quotesData = [];
         
-        // Evitar duplicação - verificar se a frase já existe
-        if (!selectedBook.value.quotes.includes(phaseData.text)) {
-          selectedBook.value.quotes.push(phaseData.text)
-          selectedBook.value.quotePages.push(phaseData.page)
+        // Evitar duplicação no front-end - verificar se a frase já existe nos arrays locais
+        const existingIndex = selectedBook.value.quotes.findIndex(q => q === phaseData.text);
+        if (existingIndex === -1) {
+          selectedBook.value.quotes.push(phaseData.text);
+          selectedBook.value.quotePages.push(phaseData.page);
+          
+          if (data && data[0]) {
+            selectedBook.value.quotesData.push(data[0]);
+          }
         }
       }
       
-      return docRef.id
+      return data ? data[0].id : null;
     } catch (err: any) {
-      console.error('Erro ao adicionar frase:', err)
-      error.value = 'Erro ao adicionar frase.'
-      throw err
+      console.error('Erro ao adicionar frase:', err);
+      error.value = 'Erro ao adicionar frase.';
+      throw err;
     }
   }
 
-  // Edit a Phase
-  const editPhase = async (bookId: string, phaseId: string, phaseData: { text: string; page: number | null }) => {
+  // Edit a Quote
+  const editPhase = async (phaseId: string, phaseData: { text: string; page: number | null }) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
+    
     try {
-      const phaseRef = doc(db, `users/${user.value.uid}/books/${bookId}/phases/${phaseId}`)
-      await updateDoc(phaseRef, {
-        text: phaseData.text,
-        page: phaseData.page,
-        updatedAt: new Date(),
-      })
+      // Atualizar a citação no Supabase
+      const { data, error: supabaseError } = await supabase
+        .from('quotes')
+        .update({
+          text: phaseData.text,
+          page: phaseData.page
+        })
+        .eq('id', phaseId)
+        .eq('user_id', userId.value)
+        .select()
       
-      if (selectedBook.value && selectedBook.value.id === bookId) {
-        const index = selectedBook.value.quotes.findIndex((quote: string) => quote === phaseData.text)
-        if (index !== -1) {
-          selectedBook.value.quotes[index] = phaseData.text
-          if (!selectedBook.value.quotePages) selectedBook.value.quotePages = []
-          selectedBook.value.quotePages[index] = phaseData.page
+      if (supabaseError) throw supabaseError
+      
+      // Atualizar o livro selecionado se necessário
+      if (selectedBook.value && data && data[0]) {
+        const bookId = data[0].book_id
+        if (selectedBook.value.id === bookId) {
+          // Encontrar o índice da citação nos arrays
+          const quoteIndex = selectedBook.value.quotesData.findIndex(
+            (quote: any) => quote.id === phaseId
+          )
+          
+          if (quoteIndex !== -1) {
+            // Atualizar os arrays
+            selectedBook.value.quotes[quoteIndex] = phaseData.text
+            selectedBook.value.quotePages[quoteIndex] = phaseData.page
+            selectedBook.value.quotesData[quoteIndex] = data[0]
+          }
         }
       }
     } catch (err: any) {
@@ -303,21 +437,40 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
 
-  // Remove a Phase
-  const removePhase = async (bookId: string, phaseId: string, quoteText: string) => {
+  // Remove a Quote
+  const removePhase = async (phaseId: string) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
+    
     try {
-      const phaseRef = doc(db, `users/${user.value.uid}/books/${bookId}/phases/${phaseId}`)
-      await deleteDoc(phaseRef)
+      // Buscar a citação primeiro para ter os detalhes
+      const { data: quoteData } = await supabase
+        .from('quotes')
+        .select('*')
+        .eq('id', phaseId)
+        .single()
       
-      if (selectedBook.value && selectedBook.value.id === bookId) {
-        const index = selectedBook.value.quotes.findIndex((quote: string) => quote === quoteText)
-        if (index !== -1) {
-          selectedBook.value.quotes.splice(index, 1)
-          if (selectedBook.value.quotePages) {
-            selectedBook.value.quotePages.splice(index, 1)
-          }
+      // Excluir a citação do Supabase
+      const { error: supabaseError } = await supabase
+        .from('quotes')
+        .delete()
+        .eq('id', phaseId)
+        .eq('user_id', userId.value)
+      
+      if (supabaseError) throw supabaseError
+      
+      // Atualizar o livro selecionado se for o mesmo
+      if (selectedBook.value && quoteData && selectedBook.value.id === quoteData.book_id) {
+        // Encontrar o índice da citação nos arrays
+        const quoteIndex = selectedBook.value.quotesData.findIndex(
+          (quote: any) => quote.id === phaseId
+        )
+        
+        if (quoteIndex !== -1) {
+          // Remover dos arrays
+          selectedBook.value.quotes.splice(quoteIndex, 1)
+          selectedBook.value.quotePages.splice(quoteIndex, 1)
+          selectedBook.value.quotesData.splice(quoteIndex, 1)
         }
       }
     } catch (err: any) {
@@ -329,11 +482,25 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   // Delete a Book
   const deleteBook = async (bookId: string) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
+    
     try {
-      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
-      await deleteDoc(bookRef)
+      // Excluir o livro do Supabase
+      const { error: supabaseError } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', bookId)
+        .eq('user_id', userId.value)
+      
+      if (supabaseError) throw supabaseError
+      
+      // Remover da lista local
       books.value = books.value.filter((book) => book.id !== bookId)
+      
+      // Limpar o livro selecionado se for o mesmo
+      if (selectedBook.value && selectedBook.value.id === bookId) {
+        selectedBook.value = null
+      }
     } catch (err: any) {
       console.error('Erro ao deletar livro:', err)
       error.value = 'Erro ao deletar livro.'
@@ -351,13 +518,13 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         const bookInfo = data.items[0].volumeInfo
         return {
           description: bookInfo.description || '',
-          pageCount: bookInfo.pageCount || 0,
+          page_count: bookInfo.pageCount || 0,
           genre: bookInfo.categories ? bookInfo.categories[0] : '',
         }
       } else {
         return {
           description: '',
-          pageCount: 0,
+          page_count: 0,
           genre: '',
         }
       }
@@ -365,30 +532,37 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       console.error('Erro ao buscar detalhes do livro na API do Google:', err)
       return {
         description: '',
-        pageCount: 0,
+        page_count: 0,
         genre: '',
       }
     }
   }
 
-  // Atualizar status de leitura de um livro
+  // Update Reading Status
   const updateReadingStatus = async (bookId: string, status: ReadingStatus) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
     
     try {
-      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
       const updateData: any = { status }
       
       // Adicionar datas de início/conclusão conforme o status
-      if (status === ReadingStatus.READING && !books.value.find(b => b.id === bookId)?.dateStarted) {
-        updateData.dateStarted = new Date()
+      const book = books.value.find(b => b.id === bookId)
+      if (status === ReadingStatus.READING && (!book?.started_reading_at)) {
+        updateData.started_reading_at = new Date().toISOString()
       }
-      if (status === ReadingStatus.COMPLETED && !books.value.find(b => b.id === bookId)?.dateCompleted) {
-        updateData.dateCompleted = new Date()
+      if (status === ReadingStatus.COMPLETED && (!book?.finished_reading_at)) {
+        updateData.finished_reading_at = new Date().toISOString()
       }
       
-      await updateDoc(bookRef, updateData)
+      // Atualizar no Supabase
+      const { error: supabaseError } = await supabase
+        .from('books')
+        .update(updateData)
+        .eq('id', bookId)
+        .eq('user_id', userId.value)
+      
+      if (supabaseError) throw supabaseError
       
       // Atualizar estado local
       const bookIndex = books.value.findIndex(book => book.id === bookId)
@@ -406,14 +580,20 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
   
-  // Atualizar avaliação de um livro
+  // Update Book Rating
   const updateBookRating = async (bookId: string, rating: number) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
     
     try {
-      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
-      await updateDoc(bookRef, { rating })
+      // Atualizar no Supabase
+      const { error: supabaseError } = await supabase
+        .from('books')
+        .update({ rating })
+        .eq('id', bookId)
+        .eq('user_id', userId.value)
+      
+      if (supabaseError) throw supabaseError
       
       // Atualizar estado local
       const bookIndex = books.value.findIndex(book => book.id === bookId)
@@ -431,29 +611,35 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
   
-  // Atualizar progresso de leitura (página atual)
-  const updateReadingProgress = async (bookId: string, currentPage: number) => {
+  // Update Reading Progress
+  const updateReadingProgress = async (bookId: string, current_page: number) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
     
     try {
-      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
-      await updateDoc(bookRef, { currentPage })
+      // Atualizar no Supabase
+      const { error: supabaseError } = await supabase
+        .from('books')
+        .update({ current_page })
+        .eq('id', bookId)
+        .eq('user_id', userId.value)
+      
+      if (supabaseError) throw supabaseError
       
       // Atualizar estado local
       const bookIndex = books.value.findIndex(book => book.id === bookId)
       if (bookIndex !== -1) {
-        books.value[bookIndex] = { ...books.value[bookIndex], currentPage }
+        books.value[bookIndex] = { ...books.value[bookIndex], current_page }
       }
       
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value?.id === bookId) {
-        selectedBook.value = { ...selectedBook.value, currentPage }
+        selectedBook.value = { ...selectedBook.value, current_page }
       }
       
       // Se a página atual for igual ao total de páginas, marcar como concluído automaticamente
       const book = books.value.find(book => book.id === bookId)
-      if (book && book.pageCount && currentPage === book.pageCount) {
+      if (book && book.page_count && current_page === book.page_count) {
         await updateReadingStatus(bookId, ReadingStatus.COMPLETED)
       }
     } catch (err: any) {
@@ -462,14 +648,20 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
   
-  // Adicionar notas a um livro
+  // Update Book Notes
   const updateBookNotes = async (bookId: string, notes: string) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
     
     try {
-      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
-      await updateDoc(bookRef, { notes })
+      // Atualizar no Supabase
+      const { error: supabaseError } = await supabase
+        .from('books')
+        .update({ notes })
+        .eq('id', bookId)
+        .eq('user_id', userId.value)
+      
+      if (supabaseError) throw supabaseError
       
       // Atualizar estado local
       const bookIndex = books.value.findIndex(book => book.id === bookId)
@@ -487,16 +679,22 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
 
-  // Método genérico para atualizar qualquer campo de um livro
+  // Generic Update Book Method
   const updateBook = async (bookId: string, updateData: any) => {
     error.value = null
-    if (!user.value) return
+    if (!userId.value) return
     
     try {
-      const bookRef = doc(db, `users/${user.value.uid}/books/${bookId}`)
-      await updateDoc(bookRef, updateData)
+      // Atualizar no Supabase
+      const { error: supabaseError } = await supabase
+        .from('books')
+        .update(updateData)
+        .eq('id', bookId)
+        .eq('user_id', userId.value)
       
-      // Atualizar estado local na lista de books
+      if (supabaseError) throw supabaseError
+      
+      // Atualizar estado local
       const bookIndex = books.value.findIndex(book => book.id === bookId)
       if (bookIndex !== -1) {
         books.value[bookIndex] = { ...books.value[bookIndex], ...updateData }
@@ -514,14 +712,12 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   }
 
   return {
-    user,
     books,
     booksByStatus,
     selectedBook,
     isLoading,
     isAuthenticated,
     error,
-    fetchUser,
     fetchBooks,
     fetchBookDetails,
     addBook,
@@ -534,6 +730,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     updateReadingProgress,
     updateBookNotes,
     updateBook,
-    initAuthListener,
+    get user() { return userId.value ? { id: userId.value } : null }
   }
 })

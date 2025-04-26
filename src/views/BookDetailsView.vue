@@ -16,7 +16,7 @@
         <div class="book-header d-flex flex-column flex-md-row pa-6">
           <div class="book-image-container me-md-8 mb-6 mb-md-0 d-flex flex-column align-center">
             <v-img
-              :src="selectedBook.coverImage || '/placeholder-book.png'"
+              :src="selectedBook.cover_image_url || '/placeholder-book.png'"
               :alt="selectedBook.title"
               width="200"
               height="300"
@@ -213,7 +213,7 @@
                 />
                 
                 <v-btn
-                  class="ml-2"
+                  class="ml-2 mb-4"
                   color="primary"
                   icon
                   variant="elevated"
@@ -408,10 +408,8 @@
 <script lang="ts" setup>
 import BaseTextField from '@/components/BaseTextField.vue';
 import BookRecommendationDialog from '@/components/BookRecommendationDialog.vue';
-import { db } from "@/firebase";
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
-import { collection, doc, getDocs, query, setDoc, where } from "firebase/firestore";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -531,6 +529,35 @@ const paginatedAndFilteredQuotes = computed(() => {
   return filteredQuotes.value.slice(start, end);
 });
 
+// Watch para manter o status persistente e atualizar o banco quando necessário
+watch(
+  () => selectedBook.value?.status, 
+  (newStatus, oldStatus) => {
+    if (newStatus !== undefined && selectedBook.value) {
+      console.log(`Status do livro alterado de ${oldStatus} para ${newStatus}`);
+      
+      // Salvar o status no localStorage imediatamente
+      const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
+      bookStatusCache[selectedBook.value.id] = Number(newStatus);
+      localStorage.setItem('bookStatuses', JSON.stringify(bookStatusCache));
+      
+      // Garantir que o banco de dados seja atualizado
+      if (oldStatus !== newStatus) {
+        const numericStatus = Number(newStatus);
+        updateReadingStatus(numericStatus);
+        
+        // Também atualize diretamente na lista global de livros no store
+        const bookInList = bookshelfStore.books.find(b => b.id === selectedBook.value?.id);
+        if (bookInList) {
+          console.log(`Atualizando status no livro da lista global: ${bookInList.id} para ${numericStatus}`);
+          bookInList.status = numericStatus;
+        }
+      }
+    }
+  },
+  { immediate: true }
+);
+
 // Carrega o livro quando o componente é montado
 onMounted(async () => {
   let bookId = route.params.id as string;
@@ -552,14 +579,33 @@ onMounted(async () => {
   // Salva o ID atual no localStorage
   localStorage.setItem('lastViewedBookId', bookId);
   
+  // Verifica se temos um status em cache para este livro
+  const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
+  const cachedStatus = bookStatusCache[bookId];
+  
+  console.log("Cache de status para o livro:", bookId, "Status:", cachedStatus);
+  
   // Carrega o livro
   try {
     await bookshelfStore.fetchBookDetails(bookId);
     selectedBook.value = bookshelfStore.selectedBook;
     
-    // Carregando a avaliação, caso exista
+    // Se temos um status em cache e ele é diferente do status que veio do banco
+    // vamos atualizá-lo para manter consistência
+    if (cachedStatus !== undefined && 
+        selectedBook.value && 
+        Number(selectedBook.value.status) !== Number(cachedStatus)) {
+      console.log(`Atualizando status do livro de ${selectedBook.value.status} para ${cachedStatus} baseado no cache.`);
+      selectedBook.value.status = Number(cachedStatus);
+    }
+    
+    // Carregando a avaliação, considerando os campos 'rating' ou 'avaliacao'
     if (selectedBook.value?.rating) {
-      bookRating.value = selectedBook.value.rating;
+      bookRating.value = Number(selectedBook.value.rating);
+    } else if (selectedBook.value?.avaliacao) {
+      bookRating.value = Number(selectedBook.value.avaliacao);
+      // Mantemos a retrocompatibilidade preenchendo o campo rating se só existir avaliacao
+      selectedBook.value.rating = selectedBook.value.avaliacao;
     }
     
     // Definindo um status padrão se não houver
@@ -594,26 +640,12 @@ const getStatusLabel = (status: string | number): string => {
 
 // Atualiza o gênero do livro
 const updateBookGenre = async () => {
-  if (!bookshelfStore.user || !selectedBook.value) return;
+  if (!selectedBook.value) return;
   
   try {
-    const q = query(
-      collection(db, `users/${bookshelfStore.user.uid}/books`),
-      where("id", "==", selectedBook.value.id)
-    );
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const docRef = doc(
-        db,
-        `users/${bookshelfStore.user.uid}/books`,
-        querySnapshot.docs[0].id
-      );
-      await setDoc(docRef, { genre: selectedBook.value.genre }, { merge: true });
-      await bookshelfStore.fetchBooks();
-      
-      showNotification("Gênero atualizado com sucesso!", "success");
-    }
+    await bookshelfStore.updateBook(selectedBook.value.id, { genre: selectedBook.value.genre });
+    await bookshelfStore.fetchBooks();
+    showNotification("Gênero atualizado com sucesso!", "success");
   } catch (err: any) {
     console.error("Erro ao atualizar gênero:", err);
     showNotification("Erro ao atualizar gênero", "error");
@@ -622,28 +654,16 @@ const updateBookGenre = async () => {
 
 // Atualiza a avaliação do livro
 const updateBookRating = async (rating: number) => {
-  if (!bookshelfStore.user || !selectedBook.value) return;
+  if (!selectedBook.value) return;
   
   try {
-    const q = query(
-      collection(db, `users/${bookshelfStore.user.uid}/books`),
-      where("id", "==", selectedBook.value.id)
-    );
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const docRef = doc(
-        db,
-        `users/${bookshelfStore.user.uid}/books`,
-        querySnapshot.docs[0].id
-      );
-      await setDoc(docRef, { rating }, { merge: true });
-      
-      // Atualizar localmente
-      selectedBook.value.rating = rating;
-      
-      showNotification("Avaliação atualizada!", "success");
-    }
+    await bookshelfStore.updateBook(selectedBook.value.id, { 
+      rating,
+      avaliacao: rating
+    });
+    selectedBook.value.rating = rating;
+    selectedBook.value.avaliacao = rating;
+    showNotification("Avaliação atualizada!", "success");
   } catch (err: any) {
     console.error("Erro ao atualizar avaliação:", err);
     showNotification("Erro ao atualizar avaliação", "error");
@@ -652,52 +672,62 @@ const updateBookRating = async (rating: number) => {
 
 // Atualiza o status de leitura
 const updateReadingStatus = async (status: number) => {
-  if (!bookshelfStore.user || !selectedBook.value) return;
+  console.log("⭐ updateReadingStatus chamado com status:", status);
+  console.log("⭐ selectedBook:", selectedBook.value);
+  
+  if (!selectedBook.value) {
+    console.error("Erro: selectedBook.value é null ou undefined");
+    showNotification("Erro: Livro não encontrado", "error");
+    return;
+  }
   
   try {
-    // Data atual para usar como padrão
+    console.log("⭐ Tentando atualizar status do livro:", selectedBook.value.id);
     const today = new Date();
-    const formattedToday = formatDateForStorage(today);
-
-    // Preparar os dados para atualização
+    
+    // Importante: usar os nomes corretos das colunas do banco de dados
     const updateData: any = { status };
     
-    // Se o status é "Estou lendo" (2)
-    if (status === 2) {
-      // Adicionar data de início se não existir
-      if (!selectedBook.value.dataInicioLeitura) {
-        updateData.dataInicioLeitura = formattedToday;
-      }
+    if (status === 2 && !selectedBook.value.started_reading_at) {
+      updateData.started_reading_at = new Date().toISOString();
+      // Manter a propriedade local para UI
+      selectedBook.value.dataInicioLeitura = formatDateForStorage(today);
     }
     
-    // Se o status é "Já li" (1)
     if (status === 1) {
-      // Adicionar data de conclusão se não existir
-      if (!selectedBook.value.dataFinalLeitura) {
-        updateData.dataFinalLeitura = formattedToday;
+      if (!selectedBook.value.finished_reading_at) {
+        updateData.finished_reading_at = new Date().toISOString();
+        // Manter a propriedade local para UI
+        selectedBook.value.dataFinalLeitura = formatDateForStorage(today);
       }
       
-      // Garantir que também tenha uma data de início
-      if (!selectedBook.value.dataInicioLeitura) {
-        // Se não tem data de início, usamos uma data 1 mês antes da data de conclusão
+      if (!selectedBook.value.started_reading_at) {
         const startDate = new Date(today);
         startDate.setMonth(today.getMonth() - 1);
-        const formattedStart = formatDateForStorage(startDate);
-        
-        updateData.dataInicioLeitura = formattedStart;
+        updateData.started_reading_at = startDate.toISOString();
+        // Manter a propriedade local para UI
+        selectedBook.value.dataInicioLeitura = formatDateForStorage(startDate);
       }
     }
     
-    // Usar o novo método updateBook para garantir que os dados são atualizados em toda a aplicação
+    console.log("⭐ updateData final a ser enviado:", updateData);
+    console.log("⭐ ID do livro:", selectedBook.value.id);
+    
     await bookshelfStore.updateBook(selectedBook.value.id, updateData);
     
-    // Atualizar localmente o selectedBook para refletir as mudanças
-    if (updateData.dataInicioLeitura) {
-      selectedBook.value.dataInicioLeitura = updateData.dataInicioLeitura;
+    // Também atualizar na lista global de livros
+    const bookInList = bookshelfStore.books.find(b => b.id === selectedBook.value?.id);
+    if (bookInList) {
+      console.log("⭐ Atualizando status no livro da lista global:", bookInList.id);
+      bookInList.status = status;
+      if (updateData.started_reading_at) bookInList.started_reading_at = updateData.started_reading_at;
+      if (updateData.finished_reading_at) bookInList.finished_reading_at = updateData.finished_reading_at;
     }
-    if (updateData.dataFinalLeitura) {
-      selectedBook.value.dataFinalLeitura = updateData.dataFinalLeitura;
-    }
+    
+    // Atualizar o status no localStorage para garantir persistência entre navegações
+    const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
+    bookStatusCache[selectedBook.value.id] = status;
+    localStorage.setItem('bookStatuses', JSON.stringify(bookStatusCache));
     
     const statusLabel = statusOptions.find(o => o.value === status)?.label;
     showNotification(`Status atualizado para "${statusLabel}"`, "success");
@@ -709,12 +739,25 @@ const updateReadingStatus = async (status: number) => {
 
 // Atualiza a data de início de leitura
 const updateStartDate = async () => {
-  if (!bookshelfStore.user || !selectedBook.value) return;
+  if (!selectedBook.value) return;
   
   try {
-    // Usar o método updateBook para garantir que a atualização seja refletida em toda a aplicação
+    // Obter a data do formato DD/MM/YYYY para ISO string para o banco de dados
+    let started_reading_at = null;
+    if (selectedBook.value.dataInicioLeitura) {
+      const dateParts = selectedBook.value.dataInicioLeitura.split('/');
+      if (dateParts.length === 3) {
+        const date = new Date(
+          parseInt(dateParts[2]), // ano
+          parseInt(dateParts[1]) - 1, // mês (0-11)
+          parseInt(dateParts[0]) // dia
+        );
+        started_reading_at = date.toISOString();
+      }
+    }
+    
     await bookshelfStore.updateBook(selectedBook.value.id, {
-      dataInicioLeitura: selectedBook.value.dataInicioLeitura
+      started_reading_at: started_reading_at
     });
     
     showNotification("Data de início de leitura atualizada!", "success");
@@ -726,12 +769,25 @@ const updateStartDate = async () => {
 
 // Atualiza a data de conclusão da leitura
 const updateEndDate = async () => {
-  if (!bookshelfStore.user || !selectedBook.value) return;
+  if (!selectedBook.value) return;
   
   try {
-    // Usar o método updateBook para garantir que a atualização seja refletida em toda a aplicação
+    // Obter a data do formato DD/MM/YYYY para ISO string para o banco de dados
+    let finished_reading_at = null;
+    if (selectedBook.value.dataFinalLeitura) {
+      const dateParts = selectedBook.value.dataFinalLeitura.split('/');
+      if (dateParts.length === 3) {
+        const date = new Date(
+          parseInt(dateParts[2]), // ano
+          parseInt(dateParts[1]) - 1, // mês (0-11)
+          parseInt(dateParts[0]) // dia
+        );
+        finished_reading_at = date.toISOString();
+      }
+    }
+    
     await bookshelfStore.updateBook(selectedBook.value.id, {
-      dataFinalLeitura: selectedBook.value.dataFinalLeitura
+      finished_reading_at: finished_reading_at
     });
     
     showNotification("Data de conclusão de leitura atualizada!", "success");
@@ -750,10 +806,9 @@ const showNotification = (text: string, color: string = "success") => {
 
 // Adicionar uma nova frase
 const addQuote = async () => {
-  if (!bookshelfStore.user || !selectedBook.value || !newQuote.value.text) return;
+  if (!selectedBook.value || !newQuote.value.text) return;
   
   try {
-    // Inicializa os arrays se não existirem
     if (!selectedBook.value.quotes) {
       selectedBook.value.quotes = [];
     }
@@ -761,19 +816,15 @@ const addQuote = async () => {
       selectedBook.value.quotePages = [];
     }
     
-    // Adiciona a frase ao Firebase
     await bookshelfStore.addPhase(selectedBook.value.id, {
       text: newQuote.value.text,
       page: newQuote.value.page || null,
     });
     
-    // Atualiza localmente
     selectedBook.value.quotes.push(newQuote.value.text);
     selectedBook.value.quotePages.push(newQuote.value.page);
     
-    // Limpa o formulário
     newQuote.value = { text: "", page: null };
-    
     showNotification("Frase favorita adicionada com sucesso!");
   } catch (err: any) {
     console.error("Erro ao adicionar frase:", err);
@@ -783,33 +834,60 @@ const addQuote = async () => {
 
 // Adicionar uma nova frase a partir do diálogo
 const addQuoteFromDialog = async () => {
-  if (!bookshelfStore.user || !selectedBook.value || !newQuote.value.text) return;
+  console.log("⭐ addQuoteFromDialog chamado");
+  console.log("⭐ selectedBook:", selectedBook.value);
+  console.log("⭐ newQuote:", newQuote.value);
+  
+  if (!selectedBook.value) {
+    console.error("Erro: selectedBook é null ou undefined");
+    showNotification("Erro: Livro não encontrado", "error");
+    return;
+  }
+  
+  if (!newQuote.value.text) {
+    console.error("Erro: Texto da frase está vazio");
+    showNotification("Por favor, digite o texto da frase", "error");
+    return;
+  }
   
   try {
-    // Inicializa os arrays se não existirem
+    console.log("⭐ Inicializando arrays de frases, se necessário");
     if (!selectedBook.value.quotes) {
       selectedBook.value.quotes = [];
     }
     if (!selectedBook.value.quotePages) {
       selectedBook.value.quotePages = [];
     }
+    if (!selectedBook.value.quotesData) {
+      selectedBook.value.quotesData = [];
+    }
     
-    // Adiciona a frase ao Firebase
-    await bookshelfStore.addPhase(selectedBook.value.id, {
+    console.log("⭐ Chamando bookshelfStore.addPhase com livro ID:", selectedBook.value.id);
+    const quoteData = {
       text: newQuote.value.text,
       page: newQuote.value.page || null,
-    });
+    };
+    console.log("⭐ Dados da frase:", quoteData);
     
-    // Atualiza localmente
+    const quoteId = await bookshelfStore.addPhase(selectedBook.value.id, quoteData);
+    console.log("⭐ Resposta da API addPhase ID:", quoteId);
+    
+    // Adiciona a frase localmente para atualização imediata da UI
     selectedBook.value.quotes.push(newQuote.value.text);
     selectedBook.value.quotePages.push(newQuote.value.page);
     
-    // Limpa o formulário
+    if (quoteId) {
+      selectedBook.value.quotesData.push({
+        id: quoteId,
+        book_id: selectedBook.value.id,
+        text: newQuote.value.text,
+        page: newQuote.value.page,
+      });
+    }
+    
+    // Limpa o formulário e fecha o diálogo
     newQuote.value = { text: "", page: null };
-    
-    // Fecha o diálogo
     showQuoteDialog.value = false;
-    
     showNotification("Frase favorita adicionada com sucesso!");
   } catch (err: any) {
     console.error("Erro ao adicionar frase:", err);
@@ -834,46 +912,31 @@ const cancelEdit = () => {
 
 // Salvar edição de frase
 const saveQuoteEdit = async (index: number) => {
-  if (!bookshelfStore.user || !selectedBook.value || !editingQuote.value.text) return;
+  if (!selectedBook.value || !editingQuote.value.text) return;
   
   try {
-    // Buscar o documento do livro
-    const q = query(
-      collection(db, `users/${bookshelfStore.user.uid}/books`),
-      where("id", "==", selectedBook.value.id)
-    );
-    const querySnapshot = await getDocs(q);
+    // Obter o ID da citação para poder editar corretamente
+    const quoteId = selectedBook.value.quotesData[index]?.id;
     
-    if (!querySnapshot.empty) {
-      // Recuperar as frases e páginas existentes
-      const bookRef = doc(db, `users/${bookshelfStore.user.uid}/books/${querySnapshot.docs[0].id}`);
-      const phasesQuery = collection(bookRef, "phases");
-      const phasesSnapshot = await getDocs(phasesQuery);
-      
-      // Encontrar o documento da frase a ser editada
-      if (phasesSnapshot.docs[index]) {
-        const phaseDoc = phasesSnapshot.docs[index];
-        
-        // Atualizar os arrays locais antes de salvar
-        selectedBook.value.quotes[index] = editingQuote.value.text;
-        selectedBook.value.quotePages[index] = editingQuote.value.page;
-        
-        // Atualizar o documento da frase usando o método do store
-        await bookshelfStore.editPhase(
-          selectedBook.value.id,
-          phaseDoc.id,
-          {
-            text: editingQuote.value.text,
-            page: editingQuote.value.page
-          }
-        );
-        
-        showNotification("Frase atualizada com sucesso!");
-        
-        // Resetar estado de edição
-        cancelEdit();
-      }
+    if (!quoteId) {
+      console.error("ID da citação não encontrado");
+      return;
     }
+    
+    await bookshelfStore.editPhase(
+      quoteId,
+      {
+        text: editingQuote.value.text,
+        page: editingQuote.value.page
+      }
+    );
+    
+    // Atualizar arrays localmente
+    selectedBook.value.quotes[index] = editingQuote.value.text;
+    selectedBook.value.quotePages[index] = editingQuote.value.page;
+    
+    showNotification("Frase atualizada com sucesso!");
+    cancelEdit();
   } catch (err: any) {
     console.error("Erro ao editar frase:", err);
     showNotification("Erro ao atualizar frase", "error");
@@ -889,36 +952,25 @@ const confirmRemoveQuote = (index: number) => {
 // Remover a frase após confirmação
 const removeQuoteConfirmed = async () => {
   const index = quoteToDeleteIndex.value;
-  if (!bookshelfStore.user || !selectedBook.value || index < 0) return;
+  if (!selectedBook.value || index < 0) return;
   
   try {
-    // Buscar o documento do livro
-    const q = query(
-      collection(db, `users/${bookshelfStore.user.uid}/books`),
-      where("id", "==", selectedBook.value.id)
-    );
-    const querySnapshot = await getDocs(q);
+    // Obter o ID da frase para poder remover corretamente
+    const quoteId = selectedBook.value.quotesData[index]?.id;
     
-    if (!querySnapshot.empty) {
-      const bookRef = doc(db, `users/${bookshelfStore.user.uid}/books/${querySnapshot.docs[0].id}`);
-      const phasesQuery = collection(bookRef, "phases");
-      const phasesSnapshot = await getDocs(phasesQuery);
-      
-      // Encontrar o documento da frase a ser removida
-      if (phasesSnapshot.docs[index]) {
-        const phaseDoc = phasesSnapshot.docs[index];
-        // Remover o documento da frase usando o método do store
-        await bookshelfStore.removePhase(
-          selectedBook.value.id,
-          phaseDoc.id,
-          selectedBook.value.quotes[index]
-        );
-        
-        showNotification("Frase removida com sucesso!");
-      }
+    if (!quoteId) {
+      console.error("ID da frase não encontrado");
+      return;
     }
     
-    // Fechar o diálogo de confirmação
+    await bookshelfStore.removePhase(quoteId);
+    
+    // Atualizar arrays localmente
+    selectedBook.value.quotes.splice(index, 1);
+    selectedBook.value.quotePages.splice(index, 1);
+    selectedBook.value.quotesData.splice(index, 1);
+    
+    showNotification("Frase removida com sucesso!");
     confirmDeleteQuote.value = false;
     quoteToDeleteIndex.value = -1;
   } catch (err: any) {
@@ -930,11 +982,10 @@ const removeQuoteConfirmed = async () => {
 
 // Excluir o livro após confirmação
 const deleteBookConfirmed = async () => {
-  if (!bookshelfStore.user) return;
+  if (!selectedBook.value) return;
+  
   try {
     await bookshelfStore.deleteBook(selectedBook.value.id);
-    
-    // Redirecionar com mensagem de sucesso
     router.push({
       path: "/bookshelf",
       query: { message: `Livro "${selectedBook.value.title}" removido com sucesso!` }
@@ -1025,6 +1076,7 @@ const getPaginationIndex = (index: number) => {
   border-radius: 12px;
   height: 300px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow-y: auto;
 }
 
 .info-card {

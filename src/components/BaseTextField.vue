@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, useAttrs } from 'vue'
+import { defineProps, useAttrs } from 'vue';
 
 // Props definidas
 defineProps({

@@ -309,7 +309,7 @@ const fetchBooks = async () => {
 };
 
 onMounted(() => {
-  bookshelfStore.initAuthListener();
+  bookshelfStore.fetchBooks();
 });
 
 const addToBookshelf = async (book: any) => {

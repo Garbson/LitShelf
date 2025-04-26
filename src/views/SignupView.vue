@@ -61,6 +61,16 @@
                 />
 
                 <v-alert
+                  v-if="successMessage"
+                  type="success"
+                  class="mb-4"
+                  variant="tonal"
+                  closable
+                >
+                  {{ successMessage }}
+                </v-alert>
+
+                <v-alert
                   v-if="errorMessage"
                   type="error"
                   class="mb-4"
@@ -155,6 +165,7 @@ const password = ref('')
 const confirmPassword = ref('')
 const isFormValid = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const authStore = useAuthStore()
@@ -186,12 +197,16 @@ const handleSignup = async () => {
   try {
     loading.value = true
     errorMessage.value = ''
+    successMessage.value = ''
     
     // Simular um pequeno delay para melhorar UX (opcional)
     await new Promise(resolve => setTimeout(resolve, 600))
     
-    await authStore.signup(email.value, password.value)
-    router.push('/dashboard')
+    const result = await authStore.registerWithEmail(email.value, password.value)
+    
+    if (result) {
+      successMessage.value = 'Conta criada com sucesso! Por favor, verifique seu email para confirmar sua conta antes de fazer login. Enviamos um link de confirmação para ' + email.value
+    }
   } catch (error: any) {
     console.error('Erro ao criar conta:', error)
     errorMessage.value = error.message || 'Falha ao criar conta.'
@@ -203,6 +218,7 @@ const handleSignup = async () => {
 const signupWithGoogle = async () => {
   try {
     errorMessage.value = ''
+    successMessage.value = ''
     // Implementação futura
     errorMessage.value = 'Registro com Google será implementado em breve.'
   } catch (error: any) {

@@ -43,8 +43,8 @@
                     >
                       <v-card class="recommendation-card">
                         <v-img
-                          v-if="recommendation.book.coverUrl"
-                          :src="recommendation.book.coverUrl"
+                          v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
+                          :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           height="200"
                           cover
                           class="recommendation-cover"
@@ -97,8 +97,8 @@
                     >
                       <v-card class="recommendation-card">
                         <v-img
-                          v-if="recommendation.book.coverUrl"
-                          :src="recommendation.book.coverUrl"
+                          v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
+                          :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           height="200"
                           cover
                           class="recommendation-cover"
@@ -148,8 +148,8 @@
                     >
                       <v-card class="recommendation-card">
                         <v-img
-                          v-if="recommendation.book.coverUrl"
-                          :src="recommendation.book.coverUrl"
+                          v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
+                          :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           height="200"
                           cover
                           class="recommendation-cover"
@@ -214,8 +214,8 @@
                     >
                       <v-card class="recommendation-card">
                         <v-img
-                          v-if="recommendation.book.coverUrl"
-                          :src="recommendation.book.coverUrl"
+                          v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
+                          :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           height="200"
                           cover
                           class="recommendation-cover"
@@ -265,8 +265,8 @@
                     >
                       <v-card class="recommendation-card">
                         <v-img
-                          v-if="recommendation.book.coverUrl"
-                          :src="recommendation.book.coverUrl"
+                          v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
+                          :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           height="200"
                           cover
                           class="recommendation-cover"
@@ -316,8 +316,8 @@
                     >
                       <v-card class="recommendation-card">
                         <v-img
-                          v-if="recommendation.book.coverUrl"
-                          :src="recommendation.book.coverUrl"
+                          v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
+                          :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           height="200"
                           cover
                           class="recommendation-cover"

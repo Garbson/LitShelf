@@ -1,13 +1,13 @@
 <template>
-  <div class="friends-container literary-bg fill-height">
+  <div class="friends-container fill-height">
     <v-container fluid class="py-8">
       <v-row>
         <v-col cols="12">
-          <h1 class="text-h3 font-weight-bold mb-6 text-center gradient-heading animate-fade-in">
-            Amigos & Conexões Literárias
+          <h1 class="text-h3 font-weight-bold mb-6 text-center page-title">
+            <span>👥 Amigos & Conexões Literárias</span>
           </h1>
           
-          <p class="text-subtitle-1 text-center mb-8">
+          <p class="text-subtitle-1 text-center mb-8 theme-text">
             Conecte-se com outros leitores, descubra livros e compartilhe sua jornada literária
           </p>
         </v-col>
@@ -16,8 +16,8 @@
       <v-row>
         <!-- Primeira coluna: Pesquisa de amigos e solicitações -->
         <v-col cols="12" lg="3" md="4">
-          <v-card class="rounded-lg pa-4 mb-6 animate-slide-up" elevation="3">
-            <v-card-title class="text-h6 text-serif">
+          <v-card class="rounded-xl pa-4 mb-6 animate-slide-up" elevation="2">
+            <v-card-title class="text-h6 font-weight-bold">
               <v-icon icon="mdi-account-search" class="me-2" color="primary" />
               Encontrar amigos
             </v-card-title>
@@ -26,11 +26,12 @@
               <v-form @submit.prevent="searchUsers">
                 <v-text-field
                   v-model="searchQuery"
-                  label="Buscar por email ou nome"
+                  label="Buscar por email"
                   variant="outlined"
                   density="comfortable"
                   prepend-inner-icon="mdi-magnify"
                   append-inner-icon="mdi-send"
+                  rounded="lg"
                   class="mb-3"
                   @click:append-inner="searchUsers"
                 />
@@ -83,26 +84,26 @@
           </v-card>
           
           <!-- Solicitações pendentes -->
-          <v-card class="rounded-lg pa-4 mb-6 animate-slide-up" elevation="3" :style="{ animationDelay: '200ms' }">
-            <v-card-title class="d-flex align-center justify-space-between text-h6 text-serif">
+          <v-card class="rounded-xl pa-4 mb-6 animate-slide-up" elevation="2" :style="{ animationDelay: '200ms' }">
+            <v-card-title class="d-flex align-center justify-space-between text-h6 font-weight-bold">
               <div>
                 <v-icon icon="mdi-account-clock" class="me-2" color="warning" />
                 Solicitações pendentes
               </div>
-              <v-chip color="warning" size="small" v-if="friendRequests.length > 0">
-                {{ friendRequests.length }}
+              <v-chip color="warning" size="small" v-if="friendsStore.friendRequests && friendsStore.friendRequests.length > 0">
+                {{ friendsStore.friendRequests.length }}
               </v-chip>
             </v-card-title>
             
             <v-card-text>
-              <v-list v-if="friendRequests.length > 0" class="pa-0">
+              <v-list v-if="friendsStore.friendRequests && friendsStore.friendRequests.length > 0" class="pa-0">
                 <v-list-item
-                  v-for="request in friendRequests"
+                  v-for="request in friendsStore.friendRequests"
                   :key="request.id"
                   class="mb-2 rounded-lg request-item"
                 >
-                  <v-list-item-title>{{ request.displayName || request.email }}</v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">{{ request.email }}</v-list-item-subtitle>
+                  <v-list-item-title>{{ request.fromName || request.fromEmail }}</v-list-item-title>
+                  <v-list-item-subtitle class="text-caption">{{ request.fromEmail }}</v-list-item-subtitle>
                   
                   <template v-slot:append>
                     <div class="d-flex gap-2">
@@ -116,7 +117,7 @@
                       <v-btn 
                         variant="outlined" 
                         color="error" 
-                        size="small" 
+                        size="small"
                         icon="mdi-close"
                         @click="rejectFriendRequest(request.id)"
                       />
@@ -135,14 +136,14 @@
         
         <!-- Segunda coluna: Lista de amigos e suas estantes -->
         <v-col cols="12" lg="9" md="8">
-          <v-card class="rounded-lg pa-4 animate-slide-up" elevation="3" :style="{ animationDelay: '100ms' }">
-            <v-card-title class="d-flex align-center justify-space-between text-h6 text-serif">
+          <v-card class="rounded-xl pa-4 animate-slide-up" elevation="2" :style="{ animationDelay: '100ms' }">
+            <v-card-title class="d-flex align-center justify-space-between text-h6 font-weight-bold">
               <div>
                 <v-icon icon="mdi-account-group" class="me-2" color="primary" />
                 Meus amigos
               </div>
               <v-chip color="primary" size="small">
-                {{ friends.length }}
+                {{ friendsStore.friends.length }}
               </v-chip>
             </v-card-title>
             
@@ -157,9 +158,9 @@
               <v-window v-model="activeTab">
                 <!-- Aba de amigos -->
                 <v-window-item value="friends">
-                  <v-row v-if="friends.length > 0">
+                  <v-row v-if="friendsStore.friends.length > 0">
                     <v-col 
-                      v-for="friend in friends" 
+                      v-for="friend in friendsStore.friends" 
                       :key="friend.id" 
                       cols="12" 
                       md="6" 
@@ -175,10 +176,11 @@
                         elevation="2"
                       >
                         <v-card-item>
-                          <v-avatar class="mb-2" size="80" color="primary">
-                            <v-icon color="white" size="40">mdi-account</v-icon>
+                          <v-avatar class="mb-2" size="80" :color="friend.photoURL ? undefined : 'primary'">
+                            <v-img v-if="friend.photoURL" :src="friend.photoURL" />
+                            <v-icon v-else color="white" size="40">mdi-account</v-icon>
                           </v-avatar>
-                          <v-card-title>{{ friend.displayName || friend.email.split('@')[0] }}</v-card-title>
+                          <v-card-title>{{ friend.name || friend.email.split('@')[0] }}</v-card-title>
                           <v-card-subtitle>{{ friend.email }}</v-card-subtitle>
                         </v-card-item>
                         
@@ -231,11 +233,12 @@
                 <v-window-item value="bookshelf">
                   <div v-if="selectedFriend" class="friend-bookshelf">
                     <div class="d-flex align-center mb-4">
-                      <v-avatar color="primary" size="40" class="me-2">
-                        <v-icon color="white">mdi-account</v-icon>
+                      <v-avatar :color="selectedFriend.photoURL ? undefined : 'primary'" size="40" class="me-2">
+                        <v-img v-if="selectedFriend.photoURL" :src="selectedFriend.photoURL" />
+                        <v-icon v-else color="white">mdi-account</v-icon>
                       </v-avatar>
                       <h3 class="text-h6">
-                        Estante de {{ selectedFriend.displayName || selectedFriend.email.split('@')[0] }}
+                        Estante de {{ selectedFriend.name || selectedFriend.email.split('@')[0] }}
                       </h3>
                     </div>
                     
@@ -257,7 +260,7 @@
                             class="align-end"
                           >
                             <v-chip
-                              v-if="book.status"
+                              v-if="book.status !== undefined"
                               :color="getStatusColor(book.status)"
                               size="small"
                               class="ma-2"
@@ -275,9 +278,9 @@
                           </v-card-subtitle>
                           
                           <v-card-text>
-                            <div v-if="book.rating" class="mb-1">
+                            <div v-if="book.rating || book.avaliacao" class="mb-1">
                               <v-rating
-                                :model-value="book.rating"
+                                :model-value="book.rating || book.avaliacao"
                                 readonly
                                 size="small"
                                 color="amber"
@@ -310,7 +313,7 @@
 
     <!-- Diálogo de confirmação para remover amigo -->
     <v-dialog v-model="confirmRemoveFriend" max-width="400" transition="dialog-bottom-transition">
-      <v-card class="remove-dialog">
+      <v-card class="remove-dialog rounded-xl">
         <v-card-title class="bg-error text-white pa-4 text-h6">Confirmar remoção</v-card-title>
         <v-card-text class="pt-4 pb-2">
           <p>Tem certeza que deseja remover esta pessoa da sua lista de amigos?</p>
@@ -334,28 +337,15 @@
 </template>
 
 <script lang="ts" setup>
-import { db } from '@/firebase';
 import { useAuthStore } from '@/stores/useAuthStore';
-import {
-    arrayRemove,
-    arrayUnion,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    query,
-    updateDoc,
-    where
-} from 'firebase/firestore';
+import { useFriendsStore } from '@/stores/useFriendsStore';
 import { onMounted, ref } from 'vue';
 
 const authStore = useAuthStore();
+const friendsStore = useFriendsStore();
 const searchQuery = ref('');
 const searchResults = ref<any[]>([]);
 const hasSearched = ref(false);
-const friends = ref<any[]>([]);
-const friendRequests = ref<any[]>([]);
-const sentRequests = ref<string[]>([]);
 const isProcessingRequest = ref<Record<string, boolean>>({});
 const showSnackbar = ref(false);
 const snackbarText = ref('');
@@ -366,7 +356,7 @@ const activeTab = ref('friends');
 const confirmRemoveFriend = ref(false);
 const friendToRemoveId = ref('');
 
-// Buscar usuários
+// Buscar usuários pelo email
 const searchUsers = async () => {
   if (!searchQuery.value.trim()) return;
   
@@ -374,228 +364,133 @@ const searchUsers = async () => {
     hasSearched.value = true;
     searchResults.value = [];
     
-    // Buscar na coleção de usuários
-    const usersRef = collection(db, 'users');
-    const q = query(
-      usersRef,
-      where('email', '>=', searchQuery.value.toLowerCase()),
-      where('email', '<=', searchQuery.value.toLowerCase() + '\uf8ff')
-    );
+    // Usar o método do friendsStore para buscar usuários
+    const result = await friendsStore.searchUsers(searchQuery.value.trim());
     
-    const querySnapshot = await getDocs(q);
-    
-    // Filtrar resultados para não incluir o usuário atual nem amigos atuais
-    const currentUser = authStore.user;
-    const friendIds = friends.value.map(friend => friend.id);
-    
-    querySnapshot.forEach((doc) => {
-      const userData = doc.data();
-      // Não incluir o próprio usuário nos resultados
-      if (doc.id !== currentUser?.uid && !friendIds.includes(doc.id)) {
-        searchResults.value.push({
-          id: doc.id,
-          email: userData.email,
-          displayName: userData.displayName || null
-        });
-      }
-    });
+    if (result.users && result.users.length > 0) {
+      searchResults.value = result.users.map(user => ({
+        id: user.id,
+        email: user.email,
+        displayName: user.name,
+        photoURL: user.photoUrl,
+        friendshipStatus: user.friendshipStatus,
+        friendshipId: user.friendshipId,
+        isSender: user.isSender
+      }));
+    }
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
     showNotification('Erro ao buscar usuários', 'error');
   }
 };
 
-// Carregar amigos e solicitações pendentes
-const loadFriendsAndRequests = async () => {
-  if (!authStore.user) return;
-  
-  try {
-    const userRef = doc(db, 'users', authStore.user.uid);
-    const userDoc = await getDoc(userRef);
-    
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      
-      // Carregar amigos
-      friends.value = [];
-      if (userData.friends && userData.friends.length > 0) {
-        for (const friendId of userData.friends) {
-          const friendDoc = await getDoc(doc(db, 'users', friendId));
-          if (friendDoc.exists()) {
-            const friendData = friendDoc.data();
-            
-            // Contar quantos livros o amigo tem
-            const booksRef = collection(db, `users/${friendId}/books`);
-            const booksSnapshot = await getDocs(booksRef);
-            const bookCount = booksSnapshot.size;
-            
-            friends.value.push({
-              id: friendId,
-              email: friendData.email,
-              displayName: friendData.displayName || null,
-              bookCount
-            });
-          }
-        }
-      }
-      
-      // Carregar solicitações recebidas
-      friendRequests.value = [];
-      if (userData.friendRequests && userData.friendRequests.length > 0) {
-        for (const requesterId of userData.friendRequests) {
-          const requesterDoc = await getDoc(doc(db, 'users', requesterId));
-          if (requesterDoc.exists()) {
-            const requesterData = requesterDoc.data();
-            friendRequests.value.push({
-              id: requesterId,
-              email: requesterData.email,
-              displayName: requesterData.displayName || null
-            });
-          }
-        }
-      }
-      
-      // Carregar solicitações enviadas
-      sentRequests.value = userData.sentRequests || [];
-    }
-  } catch (error) {
-    console.error('Erro ao carregar amigos e solicitações:', error);
-    showNotification('Erro ao carregar seus contatos', 'error');
-  }
-};
-
 // Determinar o ícone a ser exibido no botão de ação de amizade
 const getFriendshipIcon = (userId: string) => {
-  if (sentRequests.value.includes(userId)) {
-    return 'mdi-clock-outline'; // Solicitação enviada pendente
+  const user = searchResults.value.find(u => u.id === userId);
+  
+  if (!user) return 'mdi-account-plus';
+  
+  // Ícones baseados no status da amizade
+  if (user.friendshipStatus === 'accepted') {
+    return 'mdi-check'; // Já é amigo
+  } else if (user.friendshipStatus === 'pending') {
+    return user.isSender ? 'mdi-clock-outline' : 'mdi-account-arrow-left'; // Pendente
+  } else if (user.friendshipStatus === 'rejected') {
+    return 'mdi-account-cancel'; // Rejeitada
+  } else {
+    return 'mdi-account-plus'; // Adicionar amigo
   }
-  return 'mdi-account-plus'; // Adicionar amigo
 };
 
 // Determinar a cor do botão de ação de amizade
 const getFriendshipColor = (userId: string) => {
-  if (sentRequests.value.includes(userId)) {
-    return 'warning'; // Solicitação enviada pendente
+  const user = searchResults.value.find(u => u.id === userId);
+  
+  if (!user) return 'success';
+  
+  // Cores baseadas no status da amizade
+  if (user.friendshipStatus === 'accepted') {
+    return 'success'; // Já é amigo
+  } else if (user.friendshipStatus === 'pending') {
+    return 'warning'; // Pendente
+  } else if (user.friendshipStatus === 'rejected') {
+    return 'error'; // Rejeitada
+  } else {
+    return 'primary'; // Adicionar amigo
   }
-  return 'success'; // Adicionar amigo
 };
 
-// Lidar com ação de amizade (enviar solicitação ou cancelar solicitação)
+// Lidar com ação de amizade (enviar solicitação, cancelar solicitação, etc)
 const handleFriendAction = async (user: any) => {
-  if (!authStore.user) return;
+  if (!authStore.userId) {
+    showNotification('Você precisa estar logado para realizar esta ação', 'error');
+    return;
+  }
   
   try {
     isProcessingRequest.value[user.id] = true;
     
-    if (sentRequests.value.includes(user.id)) {
-      // Cancelar solicitação pendente
-      await cancelFriendRequest(user.id);
-    } else {
+    if (user.friendshipStatus === 'accepted') {
+      // Já é amigo, opção de remover
+      friendToRemoveId.value = user.friendshipId;
+      confirmRemoveFriend.value = true;
+    } 
+    else if (user.friendshipStatus === 'pending') {
+      if (user.isSender) {
+        // Cancelar solicitação enviada
+        const success = await friendsStore.cancelFriendRequest(user.friendshipId);
+        if (success) {
+          showNotification('Solicitação cancelada com sucesso');
+          await searchUsers(); // Recarregar resultados
+        } else {
+          showNotification('Erro ao cancelar solicitação', 'error');
+        }
+      } else {
+        // Aceitar uma solicitação recebida
+        const success = await friendsStore.acceptFriendRequest(user.friendshipId);
+        if (success) {
+          showNotification('Amizade aceita com sucesso!');
+          await searchUsers(); // Recarregar resultados
+          await friendsStore.fetchFriends(); // Atualizar lista de amigos
+        } else {
+          showNotification('Erro ao aceitar solicitação', 'error');
+        }
+      }
+    } 
+    else {
       // Enviar nova solicitação
-      await sendFriendRequest(user.id);
+      const result = await friendsStore.sendFriendRequest(user.email);
+      
+      if (result.success) {
+        showNotification('Solicitação de amizade enviada!');
+        await searchUsers(); // Recarregar resultados
+      } else if (result.alreadyFriends) {
+        showNotification('Vocês já são amigos', 'info');
+      } else if (result.pendingRequest) {
+        showNotification('Já existe uma solicitação pendente', 'info');
+      } else {
+        showNotification('Erro ao enviar solicitação', 'error');
+      }
     }
+  } catch (error) {
+    console.error('Erro ao processar ação de amizade:', error);
+    showNotification('Erro ao processar solicitação', 'error');
   } finally {
     isProcessingRequest.value[user.id] = false;
   }
 };
 
-// Enviar solicitação de amizade
-const sendFriendRequest = async (recipientId: string) => {
-  if (!authStore.user) return;
-  
-  try {
-    const senderRef = doc(db, 'users', authStore.user.uid);
-    const recipientRef = doc(db, 'users', recipientId);
-    
-    // Adicionar ID do destinatário à lista de solicitações enviadas do remetente
-    await updateDoc(senderRef, {
-      sentRequests: arrayUnion(recipientId)
-    });
-    
-    // Adicionar ID do remetente à lista de solicitações recebidas do destinatário
-    await updateDoc(recipientRef, {
-      friendRequests: arrayUnion(authStore.user.uid)
-    });
-    
-    // Atualizar localmente
-    sentRequests.value.push(recipientId);
-    
-    showNotification('Solicitação de amizade enviada!');
-  } catch (error) {
-    console.error('Erro ao enviar solicitação de amizade:', error);
-    showNotification('Erro ao enviar solicitação', 'error');
-  }
-};
-
-// Cancelar solicitação de amizade
-const cancelFriendRequest = async (recipientId: string) => {
-  if (!authStore.user) return;
-  
-  try {
-    const senderRef = doc(db, 'users', authStore.user.uid);
-    const recipientRef = doc(db, 'users', recipientId);
-    
-    // Remover ID do destinatário da lista de solicitações enviadas do remetente
-    await updateDoc(senderRef, {
-      sentRequests: arrayRemove(recipientId)
-    });
-    
-    // Remover ID do remetente da lista de solicitações recebidas do destinatário
-    await updateDoc(recipientRef, {
-      friendRequests: arrayRemove(authStore.user.uid)
-    });
-    
-    // Atualizar localmente
-    sentRequests.value = sentRequests.value.filter(id => id !== recipientId);
-    
-    showNotification('Solicitação de amizade cancelada');
-  } catch (error) {
-    console.error('Erro ao cancelar solicitação de amizade:', error);
-    showNotification('Erro ao cancelar solicitação', 'error');
-  }
-};
-
 // Aceitar solicitação de amizade
-const acceptFriendRequest = async (senderId: string) => {
-  if (!authStore.user) return;
-  
+const acceptFriendRequest = async (requestId: string) => {
   try {
-    const currentUserRef = doc(db, 'users', authStore.user.uid);
-    const senderRef = doc(db, 'users', senderId);
+    const success = await friendsStore.acceptFriendRequest(requestId);
     
-    // Adicionar amigos nas listas um do outro
-    await updateDoc(currentUserRef, {
-      friends: arrayUnion(senderId),
-      friendRequests: arrayRemove(senderId)
-    });
-    
-    await updateDoc(senderRef, {
-      friends: arrayUnion(authStore.user.uid),
-      sentRequests: arrayRemove(authStore.user.uid)
-    });
-    
-    // Atualizar localmente
-    const senderDoc = await getDoc(senderRef);
-    if (senderDoc.exists()) {
-      const senderData = senderDoc.data();
-      
-      // Contar quantos livros o novo amigo tem
-      const booksRef = collection(db, `users/${senderId}/books`);
-      const booksSnapshot = await getDocs(booksRef);
-      const bookCount = booksSnapshot.size;
-      
-      friends.value.push({
-        id: senderId,
-        email: senderData.email,
-        displayName: senderData.displayName || null,
-        bookCount
-      });
-      
-      // Remover da lista de solicitações pendentes
-      friendRequests.value = friendRequests.value.filter(req => req.id !== senderId);
+    if (success.success) {
+      showNotification('Amizade aceita com sucesso!');
+      // A lista de amigos será atualizada automaticamente via subscriptions
+    } else {
+      showNotification('Erro ao aceitar solicitação', 'error');
     }
-    
-    showNotification('Amizade aceita com sucesso!');
   } catch (error) {
     console.error('Erro ao aceitar solicitação de amizade:', error);
     showNotification('Erro ao aceitar solicitação', 'error');
@@ -603,67 +498,43 @@ const acceptFriendRequest = async (senderId: string) => {
 };
 
 // Rejeitar solicitação de amizade
-const rejectFriendRequest = async (senderId: string) => {
-  if (!authStore.user) return;
-  
+const rejectFriendRequest = async (requestId: string) => {
   try {
-    const currentUserRef = doc(db, 'users', authStore.user.uid);
-    const senderRef = doc(db, 'users', senderId);
+    const success = await friendsStore.rejectFriendRequest(requestId);
     
-    // Remover solicitação
-    await updateDoc(currentUserRef, {
-      friendRequests: arrayRemove(senderId)
-    });
-    
-    await updateDoc(senderRef, {
-      sentRequests: arrayRemove(authStore.user.uid)
-    });
-    
-    // Atualizar localmente
-    friendRequests.value = friendRequests.value.filter(req => req.id !== senderId);
-    
-    showNotification('Solicitação de amizade rejeitada');
+    if (success.success) {
+      showNotification('Solicitação de amizade rejeitada');
+      // A lista de solicitações será atualizada automaticamente via subscriptions
+    } else {
+      showNotification('Erro ao rejeitar solicitação', 'error');
+    }
   } catch (error) {
     console.error('Erro ao rejeitar solicitação de amizade:', error);
     showNotification('Erro ao rejeitar solicitação', 'error');
   }
 };
 
-// Remover amigo (preparar)
-const removeFriend = (friendId: string) => {
-  friendToRemoveId.value = friendId;
-  confirmRemoveFriend.value = true;
-};
-
 // Remover amigo (confirmado)
 const removeFriendConfirmed = async () => {
-  if (!authStore.user || !friendToRemoveId.value) return;
+  if (!friendToRemoveId.value) return;
   
   try {
-    const currentUserRef = doc(db, 'users', authStore.user.uid);
-    const friendRef = doc(db, 'users', friendToRemoveId.value);
+    const success = await friendsStore.removeFriend(friendToRemoveId.value);
     
-    // Remover dos amigos um do outro
-    await updateDoc(currentUserRef, {
-      friends: arrayRemove(friendToRemoveId.value)
-    });
-    
-    await updateDoc(friendRef, {
-      friends: arrayRemove(authStore.user.uid)
-    });
-    
-    // Atualizar localmente
-    friends.value = friends.value.filter(friend => friend.id !== friendToRemoveId.value);
-    
-    // Se o amigo removido era o selecionado, limpar a seleção
-    if (selectedFriend.value && selectedFriend.value.id === friendToRemoveId.value) {
-      selectedFriend.value = null;
-      friendBooks.value = [];
-      activeTab.value = 'friends';
+    if (success.success) {
+      // Se o amigo removido era o selecionado, limpar a seleção
+      if (selectedFriend.value && selectedFriend.value.id === friendToRemoveId.value) {
+        selectedFriend.value = null;
+        friendBooks.value = [];
+        activeTab.value = 'friends';
+      }
+      
+      showNotification('Amigo removido com sucesso');
+    } else {
+      showNotification('Erro ao remover amigo', 'error');
     }
     
     confirmRemoveFriend.value = false;
-    showNotification('Amigo removido com sucesso');
   } catch (error) {
     console.error('Erro ao remover amigo:', error);
     showNotification('Erro ao remover amigo', 'error');
@@ -694,16 +565,9 @@ const loadFriendBooks = async (friendId: string) => {
   try {
     friendBooks.value = [];
     
-    const booksRef = collection(db, `users/${friendId}/books`);
-    const querySnapshot = await getDocs(booksRef);
-    
-    querySnapshot.forEach((doc) => {
-      const bookData = doc.data();
-      friendBooks.value.push({
-        id: doc.id,
-        ...bookData
-      });
-    });
+    // Usar o store para carregar os livros do amigo
+    const books = await friendsStore.fetchFriendBooks(friendId);
+    friendBooks.value = books;
   } catch (error) {
     console.error('Erro ao carregar estante do amigo:', error);
     showNotification('Erro ao carregar livros', 'error');
@@ -711,19 +575,21 @@ const loadFriendBooks = async (friendId: string) => {
 };
 
 // Obter texto do status de leitura
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'reading': return 'Lendo';
-    case 'completed': return 'Concluído';
-    default: return 'Desejo Ler';
+const getStatusText = (status: number | string) => {
+  const statusNum = Number(status);
+  switch (statusNum) {
+    case 2: return 'Lendo';
+    case 1: return 'Já Li';
+    default: return 'Quero Ler';
   }
 };
 
 // Obter cor do status de leitura
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'reading': return 'info';
-    case 'completed': return 'success';
+const getStatusColor = (status: number | string) => {
+  const statusNum = Number(status);
+  switch (statusNum) {
+    case 2: return 'info';
+    case 1: return 'success';
     default: return 'grey';
   }
 };
@@ -736,86 +602,119 @@ const showNotification = (text: string, color = 'success') => {
 };
 
 // Carregar dados ao montar o componente
-onMounted(() => {
-  loadFriendsAndRequests();
+onMounted(async () => {
+  try {
+    // Inicializar buscando amigos e solicitações pendentes
+    await friendsStore.fetchFriends();
+    await friendsStore.fetchFriendRequests();
+  } catch (error) {
+    console.error('Erro ao carregar dados de amigos:', error);
+    showNotification('Erro ao carregar seus amigos', 'error');
+  }
 });
 </script>
 
 <style scoped>
 .friends-container {
-  min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #5D4037 0%, #8D6E63 50%, #A1887F 100%);
-  background-size: 200% 200%;
-  animation: gradientMovement 15s ease infinite;
-  padding: 1rem 0;
+  min-height: 100vh;
+  background: rgb(var(--v-theme-background));
+  padding: 1rem;
+  position: relative;
+}
+
+.page-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-primary));
+  letter-spacing: -0.5px;
 }
 
 .search-result-item {
-  transition: all var(--transition-medium);
+  transition: all 0.3s ease;
   border-left: 3px solid transparent;
   margin-bottom: 8px;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgb(var(--v-theme-surface));
   border-radius: 8px;
 }
 
 .search-result-item:hover {
-  background-color: rgba(255, 255, 255, 0.95);
-  border-left: 3px solid var(--v-primary-base);
+  background-color: rgb(var(--v-theme-surface-variant));
+  border-left: 3px solid rgb(var(--v-theme-primary));
   transform: translateX(3px);
 }
 
 .friend-card {
-  transition: all var(--transition-medium);
+  transition: all 0.3s ease;
   height: 100%;
   cursor: pointer;
   text-align: center;
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
+  background-color: rgb(var(--v-theme-surface));
+  border-radius: 16px;
   overflow: hidden;
 }
 
 .friend-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 .selected-friend {
-  border: 2px solid var(--v-primary-base);
-  background-color: rgba(93, 64, 55, 0.05);
-  box-shadow: 0 0 15px rgba(93, 64, 55, 0.3);
+  border: 2px solid rgb(var(--v-theme-primary));
+  background-color: rgba(var(--v-theme-primary), 0.05);
+  box-shadow: 0 0 15px rgba(var(--v-theme-primary), 0.3);
 }
 
 .friend-book-card {
   height: 100%;
-  transition: all var(--transition-medium);
-  background-color: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
+  transition: all 0.3s ease;
+  background-color: rgb(var(--v-theme-surface));
+  border-radius: 16px;
   overflow: hidden;
 }
 
 .friend-book-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
 .request-item {
-  transition: background-color var(--transition-fast);
+  transition: background-color 0.2s ease;
   border-radius: 8px;
   margin-bottom: 8px;
 }
 
 .request-item:hover {
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: rgb(var(--v-theme-surface-variant));
 }
 
-.v-card {
-  backdrop-filter: blur(10px);
+.remove-dialog {
+  border-radius: 16px;
+  overflow: hidden;
 }
 
-@keyframes gradientMovement {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.animate-slide-up {
+  animation: slide-up 0.6s ease;
+}
+
+.theme-text {
+  color: rgb(var(--v-theme-on-background));
+}
+
+@keyframes slide-up {
+  from { 
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .page-title {
+    font-size: 1.8rem;
+  }
 }
 </style>

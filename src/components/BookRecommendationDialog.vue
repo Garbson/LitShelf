@@ -19,9 +19,9 @@
           {{ error }}
         </v-alert>
 
-        <v-list v-if="friends.length > 0" class="friends-list bg-grey-lighten-4 rounded-lg">
+        <v-list v-if="friendsStore.friends.length > 0" class="friends-list bg-grey-lighten-4 rounded-lg">
           <v-list-item
-            v-for="friend in friends"
+            v-for="friend in friendsStore.friends"
             :key="friend.id"
             :value="friend"
             class="mb-1"
@@ -35,7 +35,7 @@
               ></v-checkbox>
             </template>
 
-            <v-list-item-title>{{ friend.displayName || friend.email.split('@')[0] }}</v-list-item-title>
+            <v-list-item-title>{{ friend.name || friend.email.split('@')[0] }}</v-list-item-title>
             <v-list-item-subtitle>{{ friend.email }}</v-list-item-subtitle>
           </v-list-item>
         </v-list>
@@ -47,6 +47,18 @@
           class="mt-3"
         >
           Você ainda não tem amigos para recomendar este livro.
+          <div class="mt-2">
+            <v-btn
+              variant="outlined"
+              color="primary"
+              size="small"
+              :to="{ name: 'Friends' }"
+              prepend-icon="mdi-account-multiple-plus"
+              @click="dialog = false"
+            >
+              Adicionar amigos
+            </v-btn>
+          </div>
         </v-alert>
 
         <v-textarea
@@ -64,7 +76,7 @@
           <v-card variant="outlined" class="mx-auto" width="100%" max-width="350">
             <div class="d-flex">
               <v-img
-                :src="book.coverImage || '/placeholder-book.png'"
+                :src="book.coverImage || book.cover_image_url || '/placeholder-book.png'"
                 width="80"
                 height="120"
                 cover
@@ -74,8 +86,8 @@
                 <div class="text-caption">{{ book.author }}</div>
                 <div class="mt-1">
                   <v-rating
-                    v-if="book.rating"
-                    :model-value="book.rating"
+                    v-if="book.rating || book.avaliacao"
+                    :model-value="book.rating || book.avaliacao"
                     readonly
                     size="x-small"
                     color="amber"
@@ -110,17 +122,10 @@
 </template>
 
 <script lang="ts" setup>
-import { db } from '@/firebase';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRecommendationStore } from '@/stores/useRecommendationStore';
-import {
-    addDoc,
-    collection,
-    doc,
-    getDoc,
-    serverTimestamp
-} from 'firebase/firestore';
-import { defineEmits, defineProps, onMounted, ref, watch } from 'vue';
+import { useFriendsStore } from '@/stores/useFriendsStore'; 
+import { onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -130,12 +135,12 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'recommended']);
+const emit = defineEmits(['update:modelValue', 'recommendation-sent']);
 
 const authStore = useAuthStore();
 const recommendationStore = useRecommendationStore();
+const friendsStore = useFriendsStore();
 const dialog = ref(false);
-const friends = ref<any[]>([]);
 const selectedFriends = ref<string[]>([]);
 const message = ref('');
 const isLoading = ref(false);
@@ -144,6 +149,9 @@ const error = ref('');
 // Sync dialog with v-model
 watch(() => props.modelValue, (val) => {
   dialog.value = val;
+  if (val) {
+    loadFriends();
+  }
 });
 
 watch(dialog, (val) => {
@@ -161,33 +169,15 @@ onMounted(async () => {
 });
 
 const loadFriends = async () => {
-  if (!authStore.user) return;
+  if (!authStore.userId) return;
   
   try {
-    const userRef = doc(db, 'users', authStore.user.uid);
-    const userDoc = await getDoc(userRef);
-    
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      
-      // Carregar amigos
-      friends.value = [];
-      if (userData.friends && userData.friends.length > 0) {
-        for (const friendId of userData.friends) {
-          const friendDoc = await getDoc(doc(db, 'users', friendId));
-          if (friendDoc.exists()) {
-            const friendData = friendDoc.data();
-            friends.value.push({
-              id: friendId,
-              email: friendData.email,
-              displayName: friendData.displayName || null
-            });
-          }
-        }
-      }
+    // Carregar amigos através do store
+    if (friendsStore.friends.length === 0) {
+      await friendsStore.fetchFriends();
     }
-  } catch (error) {
-    console.error("Erro ao carregar amigos:", error);
+  } catch (err) {
+    console.error("Erro ao carregar amigos:", err);
     error.value = "Não foi possível carregar sua lista de amigos.";
   }
 };
@@ -202,6 +192,14 @@ const sendRecommendations = async () => {
   error.value = '';
   
   try {
+    // Preparar o objeto de livro com os campos necessários
+    const bookToRecommend = {
+      id: props.book.id,
+      title: props.book.title,
+      author: props.book.author,
+      coverImage: props.book.coverImage || props.book.cover_image_url
+    };
+    
     // Usar o store para enviar recomendações
     const result = await recommendationStore.sendRecommendation(
       props.book.id,
@@ -210,24 +208,8 @@ const sendRecommendations = async () => {
     );
     
     if (result.success) {
-      // Firebase integration (manteremos para compatibilidade)
-      for (const friendId of selectedFriends.value) {
-        await addDoc(collection(db, 'bookRecommendations'), {
-          senderId: authStore.user?.uid,
-          senderName: authStore.user?.displayName || authStore.user?.email?.split('@')[0] || 'Usuário',
-          recipientId: friendId,
-          bookId: props.book.id,
-          bookTitle: props.book.title,
-          bookAuthor: props.book.author,
-          bookCoverImage: props.book.coverImage || '',
-          message: message.value,
-          createdAt: serverTimestamp(),
-          status: 'pending' // pending, accepted, rejected
-        });
-      }
-      
       // Emitir evento de sucesso
-      emit('recommended', {
+      emit('recommendation-sent', {
         success: true,
         friendCount: selectedFriends.value.length
       });

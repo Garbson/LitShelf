@@ -1,4 +1,4 @@
-import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Importação do Firebase Auth
+import { supabase } from '@/supabase'; // Importação do Supabase
 import { createRouter, createWebHistory } from 'vue-router'
 
 // Importando as views
@@ -10,20 +10,10 @@ import FriendsView from '../views/FriendsView.vue'
 import LoginView from '../views/LoginView.vue'
 import SignupView from '../views/SignupView.vue'
 
-const auth = getAuth()
-
-// Função para proteger as rotas
-const getCurrentUser = () => {
-  return new Promise((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        unsubscribe()
-        resolve(user)
-      },
-      reject
-    )
-  })
+// Função para verificar se o usuário está autenticado
+const getCurrentUser = async () => {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.user
 }
 
 const requireAuth = async (to, from, next) => {

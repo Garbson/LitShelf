@@ -192,18 +192,30 @@ const login = async () => {
     // Simular um pequeno delay para melhorar UX (opcional)
     await new Promise(resolve => setTimeout(resolve, 600))
     
-    await authStore.login(email.value, password.value)
+    const result = await authStore.loginWithEmail(email.value, password.value)
     
-    if (rememberMe.value) {
-      localStorage.setItem('rememberedEmail', email.value)
+    if (result === true) {
+      if (rememberMe.value) {
+        localStorage.setItem('rememberedEmail', email.value)
+      } else {
+        localStorage.removeItem('rememberedEmail')
+      }
+      
+      router.push('/bookshelf')
+    } else if (result === 'email_not_confirmed') {
+      // Tratar o caso específico de email não confirmado
+      errorMessage.value = 'Seu email ainda não foi confirmado. Por favor, verifique sua caixa de entrada e clique no link de confirmação que enviamos para você.'
     } else {
-      localStorage.removeItem('rememberedEmail')
+      errorMessage.value = 'E-mail ou senha incorretos. Por favor, tente novamente.'
     }
-    
-    router.push('/bookshelf')
   } catch (error: any) {
     console.error('Erro ao fazer login:', error)
-    errorMessage.value = 'E-mail ou senha incorretos. Por favor, tente novamente.'
+    // Verificar especificamente se é um erro de email não confirmado
+    if (error.message && error.message.includes('Email not confirmed')) {
+      errorMessage.value = 'Seu email ainda não foi confirmado. Por favor, verifique sua caixa de entrada e clique no link de confirmação que enviamos para você.'
+    } else {
+      errorMessage.value = 'E-mail ou senha incorretos. Por favor, tente novamente.'
+    }
   } finally {
     loading.value = false
   }
@@ -213,10 +225,7 @@ const loginWithGoogle = async () => {
   try {
     googleLoading.value = true
     errorMessage.value = ''
-    
-    // Simular função para login com Google (implementação real depende do Firebase)
-    // await authStore.loginWithGoogle()
-    
+
     // Por enquanto, apenas mostrar mensagem que não está implementado
     errorMessage.value = 'Login com Google será implementado em breve.'
     
