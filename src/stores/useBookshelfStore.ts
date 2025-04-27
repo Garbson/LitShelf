@@ -871,6 +871,49 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
 
+  // Fetch Friend's Quotes
+  const fetchFriendQuotes = async (friendId: string) => {
+    error.value = null
+    if (!userId.value) return []
+    
+    try {
+      console.log(`Buscando citações favoritas do amigo ${friendId}`)
+      
+      // Buscar as citações na view específica de citações de amigos
+      const { data, error: quotesError } = await supabase
+        .from('friend_quotes_view')
+        .select('*')
+        .eq('user_id', friendId)
+        .order('added_at', { ascending: false })
+      
+      if (quotesError) {
+        console.error('Erro ao buscar citações do amigo:', quotesError)
+        
+        // Caso a view não exista ainda, tentar buscar diretamente da tabela quotes
+        // Isso é um fallback para o caso da view ainda não ter sido criada
+        console.log('Tentando buscar diretamente da tabela quotes...')
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('quotes')
+          .select('*, books(title, author, cover_image_url)')
+          .eq('user_id', friendId)
+          .order('added_at', { ascending: false })
+        
+        if (fallbackError) {
+          console.error('Erro ao buscar citações diretamente:', fallbackError)
+          return []
+        }
+        
+        return fallbackData || []
+      }
+      
+      return data || []
+    } catch (err: any) {
+      console.error('Erro ao buscar citações do amigo:', err)
+      error.value = 'Erro ao buscar citações do amigo.'
+      return []
+    }
+  }
+
   return {
     books: currentBooks, // Exportamos currentBooks em vez de books diretamente
     friendBooks,
@@ -883,7 +926,9 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     setViewingFriend,
     fetchBooks,
     fetchFriendBooks,
+    fetchBookDetails,
     fetchFriendBookDetails,
+    fetchFriendQuotes, // Exportando o novo método
     addBook,
     addPhase,
     editPhase,

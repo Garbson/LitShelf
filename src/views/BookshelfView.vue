@@ -238,12 +238,12 @@
       v-if="friendId"
       color="primary"
       :to="'/friends'"
-      icon="mdi-arrow-left"
+      prepend-icon="mdi-arrow-left"
       size="large"
       class="back-to-friends-btn"
       variant="elevated"
     >
-      <v-tooltip activator="parent" location="top">Voltar para Amigos</v-tooltip>
+      Voltar para Amigos
     </v-btn>
 
     <!-- Snackbar para notificações -->

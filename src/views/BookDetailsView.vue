@@ -226,8 +226,8 @@
             </v-card>
             
             <!-- Seção de frases favoritas - modificado para aparecer com o status correto -->
-            <div v-if="showQuotesSection">
-              <h3 class="text-h5 mb-4 text-serif">
+            <div v-if="showQuotesSection || friendId">
+              <h3 class="text-h5 mb-4 mt-6 text-serif">
                 <v-icon icon="mdi-format-quote-close" color="accent" class="mr-2"></v-icon>
                 Frases Favoritas {{ friendId ? 'de ' + friendName : '' }}
               </h3>
@@ -452,6 +452,7 @@ import BaseTextField from '@/components/BaseTextField.vue';
 import BookRecommendationDialog from '@/components/BookRecommendationDialog.vue';
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
 import { useFriendsStore } from "@/stores/useFriendsStore";
+import { supabase } from "@/supabase";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -475,7 +476,7 @@ const quoteSearchQuery = ref("");
 const quotesPage = ref(1);
 const quotesPerPage = 3;
 const showQuoteDialog = ref(false);
-const friendId = computed(() => route.params.friendId as string);
+const friendId = computed(() => route.query.friendId as string);
 const friendName = ref("");
 
 // Formatação de datas para exibição e armazenamento
@@ -634,16 +635,92 @@ onMounted(async () => {
       console.log(`Carregando livro ${bookId} do amigo ${friendIdFromQuery}`);
       
       // Busca informações do amigo
-      await friendsStore.getFriendInfo(friendIdFromQuery);
+      // Verificar se já temos os amigos carregados, se não, carregar
+      if (friendsStore.friends.length === 0) {
+        console.log("Carregando lista de amigos para obter informações do amigo");
+        await friendsStore.fetchFriends();
+      }
+      
+      // Buscar o amigo na lista de amigos
       const friend = friendsStore.friends.find(f => f.id === friendIdFromQuery);
-      if (friend) {
+      
+      // Se não encontrou o amigo na lista, tentar buscar diretamente do banco
+      if (!friend) {
+        console.log("Amigo não encontrado na lista de amigos, buscando diretamente");
+        try {
+          // Buscar informações do amigo diretamente do banco
+          const { data, error } = await supabase
+            .from('available_users')
+            .select('id, name, email, avatar_url')
+            .eq('id', friendIdFromQuery)
+            .single();
+            
+          if (error) {
+            throw error;
+          }
+          
+          if (data) {
+            friendName.value = data.name || data.email || 'Amigo';
+          }
+        } catch (err) {
+          console.error("Erro ao buscar informações do amigo diretamente:", err);
+        }
+      } else {
+        // Se encontrou o amigo na lista, usar as informações
         friendName.value = friend.name || friend.email || 'Amigo';
       }
       
       // Usar o novo método específico para carregar detalhes do livro do amigo
       await bookshelfStore.fetchFriendBookDetails(bookId, friendIdFromQuery);
       selectedBook.value = bookshelfStore.selectedBook;
-      
+
+      if (selectedBook.value) {
+        // Buscar as citações/frases favoritas do livro do amigo
+        // Usando a view friend_quotes_view quando for livro de amigo
+        const { data: quotes, error: quotesError } = await supabase
+          .from('friend_quotes_view')
+          .select('*')
+          .eq('book_id', bookId)
+          .eq('user_id', friendIdFromQuery);
+        
+        // Fallback para consulta direta caso a view não retorne resultados
+        if (quotesError || !quotes || quotes.length === 0) {
+          console.log('Fallback: Buscando citações diretamente da tabela quotes');
+          const { data: directQuotes, error: directError } = await supabase
+            .from('quotes')
+            .select('*')
+            .eq('book_id', bookId)
+            .eq('user_id', friendIdFromQuery);
+          
+          if (!directError && directQuotes) {
+            quotes = directQuotes;
+            quotesError = null;
+          }
+        }
+        
+        // Preparar arrays de citações e páginas
+        const quoteTexts: string[] = []
+        const quotePages: (number | null)[] = []
+        
+        if (quotes && Array.isArray(quotes)) {
+          quotes.forEach(quote => {
+            quoteTexts.push(quote.text)
+            quotePages.push(quote.page)
+          })
+        }
+        
+        // Adicionar as citações ao selectedBook
+        if (quoteTexts.length > 0) {
+          selectedBook.value.quotes = quoteTexts;
+          selectedBook.value.quotePages = quotePages;
+          selectedBook.value.quotesData = quotes;
+        } else {
+          selectedBook.value.quotes = [];
+          selectedBook.value.quotePages = [];
+          selectedBook.value.quotesData = [];
+        }
+      }
+
       // Carregando a avaliação
       if (selectedBook.value?.rating) {
         bookRating.value = Number(selectedBook.value.rating);
@@ -1158,7 +1235,7 @@ const getPaginationIndex = (index: number) => {
 .description-card {
   background: rgb(var(--v-theme-surface));
   border-radius: 12px;
-  height: 300px;
+  max-height: 250px; /* Mudando de height fixo para max-height */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
 }
