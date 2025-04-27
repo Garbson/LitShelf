@@ -243,48 +243,48 @@
             </v-card-title>
             
             <v-card-text>
-              <v-tabs v-model="activeTab" bg-color="transparent">
-                <v-tab value="friends" class="text-subtitle-1">Amigos</v-tab>
-                <v-tab value="bookshelf" class="text-subtitle-1" :disabled="!selectedFriend">Estante</v-tab>
-              </v-tabs>
-              
-              <v-divider class="mb-4"></v-divider>
-              
-              <v-window v-model="activeTab">
-                <!-- Aba de amigos -->
-                <v-window-item value="friends">
-                  <v-row v-if="friendsStore.friends.length > 0">
-                    <v-col 
-                      v-for="friend in friendsStore.friends" 
-                      :key="friend.id" 
-                      cols="12" 
-                      md="6" 
-                      lg="4"
-                      xl="3"
-                      class="d-flex"
+              <div v-if="friendsStore.friends.length > 0">
+                <v-row>
+                  <v-col 
+                    v-for="friend in friendsStore.friends" 
+                    :key="friend.id" 
+                    cols="12" 
+                    md="6" 
+                    lg="4"
+                    xl="3"
+                    class="d-flex"
+                  >
+                    <v-card 
+                      width="100%" 
+                      class="friend-card enhanced" 
+                      elevation="3"
                     >
-                      <v-card 
-                        width="100%" 
-                        class="friend-card" 
-                        :class="{'selected-friend': selectedFriend && selectedFriend.id === friend.id}"
-                        @click="selectFriend(friend)"
-                        elevation="2"
-                      >
-                        <v-card-item>
-                          <v-avatar class="mb-2" size="80" :color="friend.photoURL ? undefined : 'primary'">
-                            <v-img v-if="friend.photoURL" :src="friend.photoURL" />
-                            <v-icon v-else color="white" size="40">mdi-account</v-icon>
-                          </v-avatar>
-                          <v-card-title>{{ friend.name || friend.email.split('@')[0] }}</v-card-title>
-                          <v-card-subtitle>{{ friend.email }}</v-card-subtitle>
-                        </v-card-item>
+                      <v-card-item>
+                        <v-avatar class="mb-2" size="80" :color="friend.photoURL ? undefined : 'primary'">
+                          <v-img v-if="friend.photoURL" :src="friend.photoURL" />
+                          <v-icon v-else color="white" size="40">mdi-account</v-icon>
+                        </v-avatar>
+                        <v-card-title>{{ friend.name || friend.email.split('@')[0] }}</v-card-title>
+                        <v-card-subtitle>{{ friend.email }}</v-card-subtitle>
+                      </v-card-item>
+                      
+                      <v-card-text class="pt-0">
+                        <v-chip size="small" color="primary" variant="outlined" class="mb-3">
+                          {{ friend.bookCount || 0 }} livros na estante
+                        </v-chip>
                         
-                        <v-card-text class="d-flex justify-space-between align-center">
-                          <div>
-                            <v-chip size="small" color="primary" variant="outlined" class="me-1">
-                              {{ friend.bookCount || 0 }} livros
-                            </v-chip>
-                          </div>
+                        <!-- Botões de ação -->
+                        <div class="d-flex justify-space-between align-center gap-2 mt-2">
+                          <v-btn
+                            block
+                            color="primary"
+                            variant="elevated"
+                            prepend-icon="mdi-bookshelf"
+                            @click="viewFriendBookshelf(friend)"
+                            class="flex-grow-1"
+                          >
+                            Ver estante
+                          </v-btn>
                           
                           <v-menu location="bottom">
                             <template v-slot:activator="{ props }">
@@ -297,13 +297,6 @@
                               />
                             </template>
                             <v-list>
-                              <v-list-item @click="viewFriendBookshelf(friend)">
-                                <v-list-item-title class="d-flex align-center">
-                                  <v-icon class="me-2">mdi-bookshelf</v-icon>
-                                  Ver estante
-                                </v-list-item-title>
-                              </v-list-item>
-                              <v-divider></v-divider>
                               <v-list-item @click="removeFriend(friend.id)">
                                 <v-list-item-title class="d-flex align-center text-error">
                                   <v-icon class="me-2" color="error">mdi-account-remove</v-icon>
@@ -312,94 +305,97 @@
                               </v-list-item>
                             </v-list>
                           </v-menu>
-                        </v-card-text>
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                  
-                  <div v-else class="text-center py-8 text-medium-emphasis">
-                    <v-icon icon="mdi-account-group-outline" size="64" color="grey" />
-                    <p class="text-h6 mt-4">Você ainda não tem amigos.</p>
-                    <p class="text-body-1">Use a busca para encontrar e adicionar amigos.</p>
-                  </div>
-                </v-window-item>
-                
-                <!-- Aba da estante do amigo -->
-                <v-window-item value="bookshelf">
-                  <div v-if="selectedFriend" class="friend-bookshelf">
-                    <div class="d-flex align-center mb-4">
-                      <v-avatar :color="selectedFriend.photoURL ? undefined : 'primary'" size="40" class="me-2">
-                        <v-img v-if="selectedFriend.photoURL" :src="selectedFriend.photoURL" />
-                        <v-icon v-else color="white">mdi-account</v-icon>
-                      </v-avatar>
-                      <h3 class="text-h6">
-                        Estante de {{ selectedFriend.name || selectedFriend.email.split('@')[0] }}
-                      </h3>
-                    </div>
-                    
-                    <v-row v-if="friendBooks.length > 0">
-                      <v-col 
-                        v-for="book in friendBooks" 
-                        :key="book.id" 
-                        cols="12" 
-                        sm="6" 
-                        md="4"
-                        lg="3"
-                        class="d-flex"
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </div>
+              
+              <div v-else class="text-center py-8 text-medium-emphasis">
+                <v-icon icon="mdi-account-group-outline" size="64" color="grey" />
+                <p class="text-h6 mt-4">Você ainda não tem amigos.</p>
+                <p class="text-body-1">Use a busca para encontrar e adicionar amigos.</p>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- Card separado para exibir a estante do amigo selecionado -->
+          <v-card v-if="selectedFriend" class="rounded-xl pa-4 mt-4 animate-slide-up" elevation="2">
+            <v-card-title class="d-flex align-center justify-space-between text-h6 font-weight-bold">
+              <div class="d-flex align-center">
+                <v-avatar :color="selectedFriend.photoURL ? undefined : 'primary'" size="40" class="me-2">
+                  <v-img v-if="selectedFriend.photoURL" :src="selectedFriend.photoURL" />
+                  <v-icon v-else color="white">mdi-account</v-icon>
+                </v-avatar>
+                <span>
+                  Estante de {{ selectedFriend.name || selectedFriend.email.split('@')[0] }}
+                </span>
+              </div>
+              <v-btn icon="mdi-close" variant="text" @click="selectedFriend = null; friendBooks = []"></v-btn>
+            </v-card-title>
+            
+            <v-card-text>
+              <v-row v-if="friendBooks.length > 0">
+                <v-col 
+                  v-for="book in friendBooks" 
+                  :key="book.id" 
+                  cols="12" 
+                  sm="6" 
+                  md="4"
+                  lg="3"
+                  class="d-flex"
+                >
+                  <v-card width="100%" class="friend-book-card" hover elevation="2">
+                    <v-img
+                      :src="book.coverImage || '/placeholder-book.png'"
+                      height="200"
+                      cover
+                      class="align-end"
+                    >
+                      <v-chip
+                        v-if="book.status !== undefined"
+                        :color="getStatusColor(book.status)"
+                        size="small"
+                        class="ma-2"
                       >
-                        <v-card width="100%" class="friend-book-card" hover elevation="2">
-                          <v-img
-                            :src="book.coverImage || '/placeholder-book.png'"
-                            height="200"
-                            cover
-                            class="align-end"
-                          >
-                            <v-chip
-                              v-if="book.status !== undefined"
-                              :color="getStatusColor(book.status)"
-                              size="small"
-                              class="ma-2"
-                            >
-                              {{ getStatusText(book.status) }}
-                            </v-chip>
-                          </v-img>
-                          
-                          <v-card-title class="text-subtitle-1 text-truncate">
-                            {{ book.title }}
-                          </v-card-title>
-                          
-                          <v-card-subtitle class="text-truncate">
-                            {{ book.author }}
-                          </v-card-subtitle>
-                          
-                          <v-card-text>
-                            <div v-if="book.rating || book.avaliacao" class="mb-1">
-                              <v-rating
-                                :model-value="book.rating || book.avaliacao"
-                                readonly
-                                size="small"
-                                color="amber"
-                                half-increments
-                                density="compact"
-                              ></v-rating>
-                            </div>
-                            
-                            <div v-if="book.genre" class="mb-1 text-caption">
-                              <strong>Gênero:</strong> {{ book.genre }}
-                            </div>
-                          </v-card-text>
-                        </v-card>
-                      </v-col>
-                    </v-row>
+                        {{ getStatusText(book.status) }}
+                      </v-chip>
+                    </v-img>
                     
-                    <div v-else class="text-center py-8 text-medium-emphasis">
-                      <v-icon icon="mdi-bookshelf" size="64" color="grey" />
-                      <p class="text-h6 mt-4">Estante vazia</p>
-                      <p class="text-body-1">Este usuário ainda não adicionou livros à sua estante.</p>
-                    </div>
-                  </div>
-                </v-window-item>
-              </v-window>
+                    <v-card-title class="text-subtitle-1 text-truncate">
+                      {{ book.title }}
+                    </v-card-title>
+                    
+                    <v-card-subtitle class="text-truncate">
+                      {{ book.author }}
+                    </v-card-subtitle>
+                    
+                    <v-card-text>
+                      <div v-if="book.rating || book.avaliacao" class="mb-1">
+                        <v-rating
+                          :model-value="book.rating || book.avaliacao"
+                          readonly
+                          size="small"
+                          color="amber"
+                          half-increments
+                          density="compact"
+                        ></v-rating>
+                      </div>
+                      
+                      <div v-if="book.genre" class="mb-1 text-caption">
+                        <strong>Gênero:</strong> {{ book.genre }}
+                      </div>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
+              
+              <div v-else class="text-center py-8 text-medium-emphasis">
+                <v-icon icon="mdi-bookshelf" size="64" color="grey" />
+                <p class="text-h6 mt-4">Estante vazia</p>
+                <p class="text-body-1">Este usuário ainda não adicionou livros à sua estante.</p>
+              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -435,9 +431,11 @@
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useFriendsStore } from '@/stores/useFriendsStore';
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
 const friendsStore = useFriendsStore();
+const router = useRouter();
 const searchQuery = ref('');
 const searchResults = ref<any[]>([]);
 const displayedUsers = ref<any[]>([]);
@@ -448,7 +446,6 @@ const snackbarText = ref('');
 const snackbarColor = ref('success');
 const selectedFriend = ref<any>(null);
 const friendBooks = ref<any[]>([]);
-const activeTab = ref('friends');
 const searchTab = ref('search');
 const confirmRemoveFriend = ref(false);
 const friendToRemoveId = ref('');
@@ -706,7 +703,6 @@ const removeFriendConfirmed = async () => {
       if (selectedFriend.value && selectedFriend.value.id === friendToRemoveId.value) {
         selectedFriend.value = null;
         friendBooks.value = [];
-        activeTab.value = 'friends';
       }
       
       showNotification('Amigo removido com sucesso');
@@ -735,9 +731,8 @@ const selectFriend = (friend: any) => {
 
 // Ver estante do amigo
 const viewFriendBookshelf = (friend: any) => {
-  selectedFriend.value = friend;
-  loadFriendBooks(friend.id);
-  activeTab.value = 'bookshelf';
+  // Redirecionar para a página BookshelfView com o ID do amigo como parâmetro
+  router.push(`/bookshelf?friendId=${friend.id}`);
 };
 
 // Carregar livros de um amigo
@@ -828,7 +823,6 @@ onMounted(async () => {
 .friend-card {
   transition: all 0.3s ease;
   height: 100%;
-  cursor: pointer;
   text-align: center;
   background-color: rgb(var(--v-theme-surface));
   border-radius: 16px;
@@ -840,10 +834,16 @@ onMounted(async () => {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
-.selected-friend {
-  border: 2px solid rgb(var(--v-theme-primary));
-  background-color: rgba(var(--v-theme-primary), 0.05);
-  box-shadow: 0 0 15px rgba(var(--v-theme-primary), 0.3);
+/* Nova classe para aprimorar a visualização do card de amigos */
+.friend-card.enhanced {
+  border: 1px solid rgba(var(--v-theme-primary), 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.friend-card.enhanced:hover {
+  border-color: rgba(var(--v-theme-primary), 0.6);
+  box-shadow: 0 8px 20px rgba(var(--v-theme-primary), 0.15);
 }
 
 .friend-book-card {

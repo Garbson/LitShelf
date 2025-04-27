@@ -1,8 +1,16 @@
 <template>
   <div class="bookshelf-container fill-height d-flex justify-center">
+    <!-- O aviso destacado foi removido, mantendo apenas o título -->
     <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 90%">
       <h1 class="text-h3 font-weight-bold mb-4 text-center bookshelf-title">
-        <span class="page-title">📚 Minha Estante Digital</span>
+        <span class="page-title">
+          <template v-if="friendInfo">
+            📚 Estante de {{ friendInfo.name }}
+          </template>
+          <template v-else>
+            📚 Minha Estante Digital
+          </template>
+        </span>
       </h1>
 
       <!-- Filtros e pesquisa -->
@@ -156,7 +164,7 @@
 
       <!-- Mensagem de nenhum livro -->
       <v-card 
-        v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error" 
+        v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error && !friendId" 
         class="pa-8 text-center empty-bookshelf-card"
       >
         <v-icon size="64" color="primary" class="mb-4">mdi-bookshelf</v-icon>
@@ -175,7 +183,68 @@
           Adicionar Livros
         </v-btn>
       </v-card>
+
+      <!-- Mensagem de nenhum livro do amigo -->
+      <v-card 
+        v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error && friendId && computedBooks.length === 0" 
+        class="pa-8 text-center empty-bookshelf-card"
+      >
+        <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-bookshelf</v-icon>
+        <p class="text-h6 mb-4">
+          A estante deste amigo está vazia.
+        </p>
+        <v-btn 
+          color="primary" 
+          :to="'/friends'"
+          prepend-icon="mdi-arrow-left"
+          variant="elevated"
+        >
+          Voltar para Amigos
+        </v-btn>
+      </v-card>
+      
+      <!-- Card para nenhum resultado de filtro em estante de amigo -->
+      <v-card 
+        v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error && friendId && filteredBooks.length === 0" 
+        class="pa-8 text-center empty-bookshelf-card"
+      >
+        <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-filter-remove</v-icon>
+        <p class="text-h6 mb-4">
+          Nenhum livro do amigo corresponde aos critérios de busca.
+        </p>
+        <div class="d-flex gap-3 justify-center">
+          <v-btn 
+            color="secondary" 
+            @click="resetFilters"
+            prepend-icon="mdi-filter-remove-outline"
+            variant="tonal"
+          >
+            Limpar Filtros
+          </v-btn>
+          <v-btn 
+            color="primary" 
+            :to="'/friends'"
+            prepend-icon="mdi-arrow-left"
+            variant="elevated"
+          >
+            Voltar para Amigos
+          </v-btn>
+        </div>
+      </v-card>
     </v-card>
+
+    <!-- Botão flutuante para voltar para a página de amigos quando estiver vendo estante de amigo -->
+    <v-btn
+      v-if="friendId"
+      color="primary"
+      :to="'/friends'"
+      icon="mdi-arrow-left"
+      size="large"
+      class="back-to-friends-btn"
+      variant="elevated"
+    >
+      <v-tooltip activator="parent" location="top">Voltar para Amigos</v-tooltip>
+    </v-btn>
 
     <!-- Snackbar para notificações -->
     <v-snackbar v-model="showSnackbar" :color="snackbarColor" timeout="3000">
@@ -190,10 +259,13 @@
 <script lang="ts" setup>
 import BaseTextField from '@/components/BaseTextField.vue';
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
+import { useFriendsStore } from "@/stores/useFriendsStore";
+import { supabase } from '@/supabase';
 import { computed, onActivated, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const bookshelfStore = useBookshelfStore();
+const friendsStore = useFriendsStore();
 const router = useRouter();
 const route = useRoute();
 const searchQuery = ref("");
@@ -204,6 +276,9 @@ const snackbarText = ref("");
 const snackbarColor = ref("success");
 const currentPage = ref(1);
 const booksPerPage = 8;
+const friendInfo = ref(null); // Informação do amigo
+const friendId = computed(() => route.query.friendId as string || null);
+const friendBooks = ref<any[]>([]);
 
 // Opções de filtro
 const filterOptions = [
@@ -321,9 +396,24 @@ watch(() => route.query.message, (newMessage) => {
     showSnackbar.value = true;
     
     // Limpar a query param após mostrar a mensagem
-    router.replace({ query: {} });
+    router.replace({ query: { friendId: friendId.value } });
   }
 });
+
+// Watcher para monitorar mudanças no friendId (quando a URL muda)
+watch(friendId, async (newFriendId, oldFriendId) => {
+  console.log(`friendId mudou de ${oldFriendId} para ${newFriendId}`);
+  
+  if (newFriendId) {
+    // Estamos vendo a estante de um amigo
+    await fetchFriendInfo(newFriendId);
+    await loadFriendBooks(newFriendId);
+  } else {
+    // Voltamos para nossa própria estante
+    friendInfo.value = null;
+    await refreshBookshelf();
+  }
+}, { immediate: false }); // não disparar imediatamente, pois já tratamos no onMounted
 
 // Resetar a página atual quando os filtros ou ordenação mudarem
 watch([searchQuery, selectedFilter, sortOption], () => {
@@ -331,19 +421,46 @@ watch([searchQuery, selectedFilter, sortOption], () => {
 });
 
 // Recarregar livros ao montar o componente
-onMounted(() => {
-  refreshBookshelf();
+onMounted(async () => {
+  // Em vez de tentar modificar books diretamente, usamos o método do store projetado para isso
+  bookshelfStore.setViewingFriend(null); // Isso reseta o store para o modo de estante pessoal
+  
+  console.log("BookshelfView montado - verificando se é uma estante de amigo...");
+  
+  // Se houver um friendId no parâmetro da URL, buscar APENAS informações do amigo e seus livros
+  if (friendId.value) {
+    console.log("É uma estante de amigo, carregando apenas dados do amigo:", friendId.value);
+    await fetchFriendInfo(friendId.value);
+    await loadFriendBooks(friendId.value);
+  } else {
+    // Caso contrário, buscar APENAS os próprios livros
+    console.log("É a estante pessoal, carregando apenas livros pessoais");
+    await refreshBookshelf();
+  }
 });
 
 // Adicionar onActivated para garantir que os dados sejam atualizados 
 // quando o usuário retorna à página da estante
 onActivated(() => {
-  console.log("BookshelfView ativado - recarregando livros...");
-  refreshBookshelf();
+  console.log("BookshelfView ativado - verificando se deve recarregar livros...");
+  // Só recarrega os livros pessoais se não estiver visualizando a estante de um amigo
+  if (!friendId.value) {
+    console.log("Recarregando estante pessoal...");
+    refreshBookshelf();
+  } else {
+    console.log("Mantendo a visualização da estante do amigo:", friendId.value);
+    // Se for uma estante de amigo, garantir que não seja sobreposta
+    loadFriendBooks(friendId.value);
+  }
 });
 
 const goToBookDetails = (bookId: string) => {
-  router.push(`/book/${bookId}`);
+  // Se estivermos vendo a estante de um amigo, incluir o friendId na navegação
+  if (friendId.value) {
+    router.push(`/book/${bookId}?friendId=${friendId.value}`);
+  } else {
+    router.push(`/book/${bookId}`);
+  }
 };
 
 // Método para atualizar a estante com os status mais recentes
@@ -374,6 +491,55 @@ const refreshBookshelf = async () => {
     }
   });
 };
+
+// Carrega os livros do amigo
+async function loadFriendBooks(id: string) {
+  try {
+    console.log('Buscando livros do amigo com ID:', id);
+    bookshelfStore.isLoading = true;
+    bookshelfStore.error = '';
+    
+    // Obter o usuário logado atual
+    const userSession = await supabase.auth.getSession();
+    const currentUserId = userSession.data.session?.user.id;
+    
+    if (!currentUserId) {
+      throw new Error('Usuário não autenticado');
+    }
+    
+    console.log('ID do usuário atual:', currentUserId);
+    
+    // Usar o novo método específico para carregar livros de amigos
+    await bookshelfStore.fetchFriendBooks(id);
+    console.log('Livros do amigo carregados via store específico');
+
+  } catch (err) {
+    console.error('Erro ao carregar livros do amigo:', err);
+    bookshelfStore.error = 'Erro ao carregar livros do amigo.';
+  } finally {
+    bookshelfStore.isLoading = false;
+  }
+}
+
+// Busca informações do amigo
+async function fetchFriendInfo(id: string) {
+  try {
+    const { data, error } = await supabase
+      .from('available_users')
+      .select('id, name, email, avatar_url')
+      .eq('id', id)
+      .single();
+      
+    if (error) throw error;
+    
+    if (data) {
+      friendInfo.value = data;
+    }
+  } catch (err) {
+    console.error('Erro ao buscar informações do amigo:', err);
+    bookshelfStore.error = 'Não foi possível carregar informações do amigo.';
+  }
+}
 
 // Retorna a cor do chip de status
 const getStatusColor = (status: string | number): string => {
@@ -427,6 +593,13 @@ const getStatusClass = (status: string | number): string => {
   }
 };
 
+// Função para resetar todos os filtros
+const resetFilters = () => {
+  searchQuery.value = "";
+  selectedFilter.value = "all";
+  sortOption.value = "title_asc";
+  currentPage.value = 1;
+};
 </script>
 
 <style scoped>
@@ -573,6 +746,19 @@ const getStatusClass = (status: string | number): string => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-width: 600px;
   margin: 0 auto;
+}
+
+.friend-alert {
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.back-to-friends-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 1000;
 }
 
 @media (max-width: 600px) {

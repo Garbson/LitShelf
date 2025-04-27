@@ -56,8 +56,22 @@ const routes = [
     beforeEnter: requireAuth, // Protegendo a rota
   },
   {
+    path: '/bookshelf/:friendId',
+    name: 'friend-bookshelf',
+    component: BookshelfView,
+    props: true,
+    beforeEnter: requireAuth, // Protegendo a rota
+  },
+  {
     path: '/book/:id',
     name: 'book-details',
+    component: BookDetailsView,
+    props: true,
+    beforeEnter: requireAuth, // Protegendo a rota
+  },
+  {
+    path: '/book/:id/:friendId',
+    name: 'friend-book-details',
     component: BookDetailsView,
     props: true,
     beforeEnter: requireAuth, // Protegendo a rota

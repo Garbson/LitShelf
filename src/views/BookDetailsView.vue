@@ -3,6 +3,7 @@
     <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 90%">
       <h1 class="text-h3 font-weight-bold mb-6 text-center bookshelf-title">
         <span class="page-title">📖 Detalhes do Livro</span>
+        <span v-if="friendId" class="text-subtitle-1 ml-2">(Estante de {{friendName}})</span>
       </h1>
 
       <!-- Spinner de carregamento -->
@@ -37,7 +38,7 @@
             </v-card-subtitle>
             
             <!-- Sistema de avaliação - sem o card -->
-            <div class="mb-6">
+            <div class="mb-6" v-if="!friendId">
               <h3 class="mb-1 text-body-1">Sua avaliação</h3>
               <div class="d-flex align-center">
                 <v-rating
@@ -51,26 +52,42 @@
                 <span class="ms-3 text-subtitle-1" v-if="bookRating > 0">{{ bookRating }} de 5 estrelas</span>
               </div>
             </div>
+
+            <div class="mb-6" v-else>
+              <h3 class="mb-1 text-body-1">Avaliação de {{friendName}}</h3>
+              <div class="d-flex align-center">
+                <v-rating
+                  v-model="bookRating"
+                  color="amber"
+                  :readonly="true"
+                  half-increments
+                  :size="57"
+                ></v-rating>
+                <span class="ms-3 text-subtitle-1" v-if="bookRating > 0">{{ bookRating }} de 5 estrelas</span>
+              </div>
+            </div>
             
             <!-- Espaçamento adicionado entre os botões -->
             <div class="d-flex flex-wrap gap-4">
+              <template v-if="!friendId">
+                <v-btn 
+                  color="primary" 
+                  variant="tonal" 
+                  prepend-icon="mdi-heart" 
+                >
+                  Favoritar
+                </v-btn>
+                <v-btn 
+                  color="secondary" 
+                  variant="tonal" 
+                  prepend-icon="mdi-share" 
+                  @click="showRecommendDialog = true"
+                >
+                  Recomendar
+                </v-btn>
+              </template>
               <v-btn 
-                color="primary" 
-                variant="tonal" 
-                prepend-icon="mdi-heart" 
-              >
-                Favoritar
-              </v-btn>
-              <v-btn 
-                color="secondary" 
-                variant="tonal" 
-                prepend-icon="mdi-share" 
-                @click="showRecommendDialog = true"
-              >
-                Recomendar
-              </v-btn>
-              <v-btn 
-                :to="`/bookshelf`"
+                :to="friendId ? { path: '/bookshelf', query: { friendId } } : '/bookshelf'"
                 prepend-icon="mdi-bookshelf"
                 variant="outlined"
               >
@@ -96,6 +113,7 @@
               <div class="mb-4">
                 <p class="font-weight-medium mb-1">Status de Leitura</p>
                 <v-select
+                  v-if="!friendId"
                   v-model="selectedBook.status"
                   :items="statusOptions"
                   item-title="label"
@@ -117,54 +135,67 @@
                     </v-list-item>
                   </template>
                 </v-select>
+                <div v-else class="d-flex align-center">
+                  <v-icon :color="getStatusColor(selectedBook.status)" class="mr-2">{{ getStatusIcon(selectedBook.status) }}</v-icon>
+                  {{ getStatusLabel(selectedBook.status) }}
+                </div>
               </div>
 
               <!-- Datas de leitura -->
               <div v-if="selectedBook.status !== 0" class="reading-date mb-4">
                 <!-- Status "Estou Lendo" -->
                 <template v-if="selectedBook.status === 2">
-                  <p class="font-weight-medium mb-1">Começou a ler em</p>
+                  <p class="font-weight-medium mb-1">{{ friendId ? `${friendName} começou a ler em` : 'Começou a ler em' }}</p>
                   <BaseTextField
+                    v-if="!friendId"
                     v-model="startDateFormatted"
                     type="date"
                     density="compact"
                     @update:model-value="updateStartDate"
                   />
+                  <p v-else>{{ startDateFormatted || 'Não informado' }}</p>
                 </template>
                 
                 <!-- Status "Já Li" - Mostrar tanto data de início quanto data de conclusão -->
                 <template v-else-if="selectedBook.status === 1">
-                  <p class="font-weight-medium mb-1">Começou a ler em</p>
+                  <p class="font-weight-medium mb-1">{{ friendId ? `${friendName} começou a ler em` : 'Começou a ler em' }}</p>
                   <BaseTextField
+                    v-if="!friendId"
                     v-model="startDateFormatted"
                     type="date"
                     density="compact"
                     class="mb-3"
                     @update:model-value="updateStartDate"
                   />
+                  <p v-else class="mb-3">{{ startDateFormatted || 'Não informado' }}</p>
                   
-                  <p class="font-weight-medium mb-1">Leitura concluída em</p>
+                  <p class="font-weight-medium mb-1">{{ friendId ? `${friendName} concluiu a leitura em` : 'Leitura concluída em' }}</p>
                   <BaseTextField
+                    v-if="!friendId"
                     v-model="endDateFormatted"
                     type="date"
                     density="compact"
                     @update:model-value="updateEndDate"
                   />
+                  <p v-else>{{ endDateFormatted || 'Não informado' }}</p>
                 </template>
               </div>
               
               <p class="font-weight-medium mb-1">Gênero</p>
               <BaseTextField
+                v-if="!friendId"
                 v-model="selectedBook.genre"
                 density="compact"
                 @blur="updateBookGenre"
                 class="mb-4"
               />
+              <p v-else class="mb-4">{{ selectedBook.genre || 'Não informado' }}</p>
               
               <p class="font-weight-medium mb-1">Número de Páginas</p>
               <p class="mb-4">{{ selectedBook.pageCount || 'Não informado' }}</p>
               
               <v-btn 
+                v-if="!friendId"
                 color="error" 
                 block
                 prepend-icon="mdi-delete"
@@ -198,11 +229,11 @@
             <div v-if="showQuotesSection">
               <h3 class="text-h5 mb-4 text-serif">
                 <v-icon icon="mdi-format-quote-close" color="accent" class="mr-2"></v-icon>
-                Frases Favoritas
+                Frases Favoritas {{ friendId ? 'de ' + friendName : '' }}
               </h3>
               
               <!-- Barra de pesquisa de frases e botão para adicionar nova frase -->
-              <div class="d-flex align-center mb-4">
+              <div v-if="!friendId" class="d-flex align-center mb-4">
                 <BaseTextField
                   v-model="quoteSearchQuery"
                   label="Pesquisar frases"
@@ -223,6 +254,17 @@
                   <v-tooltip activator="parent" location="top">Adicionar frase</v-tooltip>
                 </v-btn>
               </div>
+
+              <div v-else class="d-flex align-center mb-4">
+                <BaseTextField
+                  v-model="quoteSearchQuery"
+                  label="Pesquisar frases"
+                  density="comfortable"
+                  prepend-inner-icon="mdi-magnify"
+                  clearable
+                  class="flex-grow-1"
+                />
+              </div>
               
               <!-- Lista de frases filtradas e paginadas -->
               <div class="quotes-list">
@@ -235,7 +277,7 @@
                 >
                   <v-card-text>
                     <!-- Modo de edição -->
-                    <template v-if="editingIndex === getPaginationIndex(index)">
+                    <template v-if="editingIndex === getPaginationIndex(index) && !friendId">
                       <BaseTextField
                         v-model="editingQuote.text"
                         label="Editar Frase"
@@ -270,7 +312,7 @@
                         </span>
                       </div>
                       
-                      <div class="d-flex mt-3 justify-end gap-2">
+                      <div v-if="!friendId" class="d-flex mt-3 justify-end gap-2">
                         <v-btn 
                           @click="startEdit(getPaginationIndex(index), quote.text)" 
                           color="primary" 
@@ -297,7 +339,7 @@
                 
                 <!-- Mensagem quando não há frases -->
                 <p v-if="!filteredQuotes.length" class="text-center pa-4">
-                  {{ quoteSearchQuery ? 'Nenhuma frase corresponde à sua pesquisa.' : 'Nenhuma frase favorita adicionada ainda.' }}
+                  {{ quoteSearchQuery ? 'Nenhuma frase corresponde à sua pesquisa.' : friendId ? `${friendName} ainda não adicionou frases favoritas.` : 'Nenhuma frase favorita adicionada ainda.' }}
                 </p>
                 
                 <!-- Paginação -->
@@ -409,12 +451,14 @@
 import BaseTextField from '@/components/BaseTextField.vue';
 import BookRecommendationDialog from '@/components/BookRecommendationDialog.vue';
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
+import { useFriendsStore } from "@/stores/useFriendsStore";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
 const router = useRouter();
 const bookshelfStore = useBookshelfStore();
+const friendsStore = useFriendsStore();
 const selectedBook = ref<any>(null);
 const newQuote = ref({ text: "", page: null });
 const editingIndex = ref(-1);
@@ -431,6 +475,8 @@ const quoteSearchQuery = ref("");
 const quotesPage = ref(1);
 const quotesPerPage = 3;
 const showQuoteDialog = ref(false);
+const friendId = computed(() => route.params.friendId as string);
+const friendName = ref("");
 
 // Formatação de datas para exibição e armazenamento
 const formatDateForDisplay = (date: Date | string | null | undefined): string => {
@@ -533,7 +579,7 @@ const paginatedAndFilteredQuotes = computed(() => {
 watch(
   () => selectedBook.value?.status, 
   (newStatus, oldStatus) => {
-    if (newStatus !== undefined && selectedBook.value) {
+    if (newStatus !== undefined && selectedBook.value && !friendId.value) {
       console.log(`Status do livro alterado de ${oldStatus} para ${newStatus}`);
       
       // Salvar o status no localStorage imediatamente
@@ -579,48 +625,83 @@ onMounted(async () => {
   // Salva o ID atual no localStorage
   localStorage.setItem('lastViewedBookId', bookId);
   
-  // Verifica se temos um status em cache para este livro
-  const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
-  const cachedStatus = bookStatusCache[bookId];
+  // Obtém o friendId da query (não dos parâmetros da rota)
+  const friendIdFromQuery = route.query.friendId as string;
   
-  console.log("Cache de status para o livro:", bookId, "Status:", cachedStatus);
-  
-  // Carrega o livro
-  try {
-    await bookshelfStore.fetchBookDetails(bookId);
-    selectedBook.value = bookshelfStore.selectedBook;
-    
-    // Se temos um status em cache e ele é diferente do status que veio do banco
-    // vamos atualizá-lo para manter consistência
-    if (cachedStatus !== undefined && 
-        selectedBook.value && 
-        Number(selectedBook.value.status) !== Number(cachedStatus)) {
-      console.log(`Atualizando status do livro de ${selectedBook.value.status} para ${cachedStatus} baseado no cache.`);
-      selectedBook.value.status = Number(cachedStatus);
-    }
-    
-    // Carregando a avaliação, considerando os campos 'rating' ou 'avaliacao'
-    if (selectedBook.value?.rating) {
-      bookRating.value = Number(selectedBook.value.rating);
-    } else if (selectedBook.value?.avaliacao) {
-      bookRating.value = Number(selectedBook.value.avaliacao);
-      // Mantemos a retrocompatibilidade preenchendo o campo rating se só existir avaliacao
-      selectedBook.value.rating = selectedBook.value.avaliacao;
-    }
-    
-    // Definindo um status padrão se não houver
-    if (selectedBook.value && (selectedBook.value.status === undefined || selectedBook.value.status === null)) {
-      selectedBook.value.status = 0; // Quero ler
-    }
-    
-    // Se não conseguimos carregar o livro, redireciona para a estante
-    if (!selectedBook.value) {
+  // Verifica se estamos visualizando um livro de um amigo
+  if (friendIdFromQuery) {
+    try {
+      console.log(`Carregando livro ${bookId} do amigo ${friendIdFromQuery}`);
+      
+      // Busca informações do amigo
+      await friendsStore.getFriendInfo(friendIdFromQuery);
+      const friend = friendsStore.friends.find(f => f.id === friendIdFromQuery);
+      if (friend) {
+        friendName.value = friend.name || friend.email || 'Amigo';
+      }
+      
+      // Usar o novo método específico para carregar detalhes do livro do amigo
+      await bookshelfStore.fetchFriendBookDetails(bookId, friendIdFromQuery);
+      selectedBook.value = bookshelfStore.selectedBook;
+      
+      // Carregando a avaliação
+      if (selectedBook.value?.rating) {
+        bookRating.value = Number(selectedBook.value.rating);
+      } else if (selectedBook.value?.avaliacao) {
+        bookRating.value = Number(selectedBook.value.avaliacao);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar detalhes do livro do amigo:", error);
+      showNotification("Erro ao carregar detalhes do livro do amigo", "error");
       router.push('/bookshelf');
     }
-  } catch (error) {
-    console.error("Erro ao carregar detalhes do livro:", error);
-    showNotification("Erro ao carregar detalhes do livro", "error");
-    router.push('/bookshelf');
+  } else {
+    // Verifica se temos um status em cache para este livro
+    const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
+    const cachedStatus = bookStatusCache[bookId];
+    
+    console.log("Cache de status para o livro:", bookId, "Status:", cachedStatus);
+    
+    // Carrega o livro
+    try {
+      // Garantir que não estamos mais no modo de visualização de amigo
+      bookshelfStore.setViewingFriend(null);
+      
+      await bookshelfStore.fetchBookDetails(bookId);
+      selectedBook.value = bookshelfStore.selectedBook;
+      
+      // Se temos um status em cache e ele é diferente do status que veio do banco
+      // vamos atualizá-lo para manter consistência
+      if (cachedStatus !== undefined && 
+          selectedBook.value && 
+          Number(selectedBook.value.status) !== Number(cachedStatus)) {
+        console.log(`Atualizando status do livro de ${selectedBook.value.status} para ${cachedStatus} baseado no cache.`);
+        selectedBook.value.status = Number(cachedStatus);
+      }
+      
+      // Carregando a avaliação, considerando os campos 'rating' ou 'avaliacao'
+      if (selectedBook.value?.rating) {
+        bookRating.value = Number(selectedBook.value.rating);
+      } else if (selectedBook.value?.avaliacao) {
+        bookRating.value = Number(selectedBook.value.avaliacao);
+        // Mantemos a retrocompatibilidade preenchendo o campo rating se só existir avaliacao
+        selectedBook.value.rating = selectedBook.value.avaliacao;
+      }
+      
+      // Definindo um status padrão se não houver
+      if (selectedBook.value && (selectedBook.value.status === undefined || selectedBook.value.status === null)) {
+        selectedBook.value.status = 0; // Quero ler
+      }
+      
+      // Se não conseguimos carregar o livro, redireciona para a estante
+      if (!selectedBook.value) {
+        router.push('/bookshelf');
+      }
+    } catch (error) {
+      console.error("Erro ao carregar detalhes do livro:", error);
+      showNotification("Erro ao carregar detalhes do livro", "error");
+      router.push('/bookshelf');
+    }
   }
 });
 
@@ -629,6 +710,13 @@ const getStatusColor = (status: string | number): string => {
   const statusNum = Number(status);
   const option = statusOptions.find(o => o.value === statusNum);
   return option ? option.color : 'grey';
+};
+
+// Retorna o ícone do status
+const getStatusIcon = (status: string | number): string => {
+  const statusNum = Number(status);
+  const option = statusOptions.find(o => o.value === statusNum);
+  return option ? option.icon : 'mdi-bookmark-outline';
 };
 
 // Retorna o texto do status
@@ -999,11 +1087,7 @@ const deleteBookConfirmed = async () => {
 
 // Adicionar a função de callback
 const onRecommendationSent = (count: number) => {
-  toast.add({
-    color: 'success',
-    title: 'Recomendação enviada',
-    text: `Livro recomendado para ${count} ${count === 1 ? 'amigo' : 'amigos'} com sucesso!`
-  });
+  showNotification(`Livro recomendado para ${count} ${count === 1 ? 'amigo' : 'amigos'} com sucesso!`);
 };
 
 // Função para obter o índice correto na paginação

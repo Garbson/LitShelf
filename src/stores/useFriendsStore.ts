@@ -543,7 +543,7 @@ export const useFriendsStore = defineStore('friends', () => {
       const { data, error } = await supabase
         .from('books')
         .select('*')
-        .eq('userId', friendId);
+        .eq('user_id', friendId);
         
       if (error) throw error;
       

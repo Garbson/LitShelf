@@ -35,14 +35,21 @@ interface Book {
 export const useBookshelfStore = defineStore('bookshelf', () => {
   // Estado
   const books = ref<Book[]>([])
+  const friendBooks = ref<Book[]>([]) // Novo array para livros do amigo
   const selectedBook = ref<Book | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const authStore = useAuthStore()
+  const viewingFriendId = ref<string | null>(null) // ID do amigo cuja estante está sendo visualizada
 
   // Computed
   const isAuthenticated = computed(() => authStore.isAuthenticated)
   const userId = computed(() => authStore.userId)
+  
+  // Livros exibidos atualmente (meus ou do amigo)
+  const currentBooks = computed(() => {
+    return viewingFriendId.value ? friendBooks.value : books.value;
+  })
   
   // Filtragem de livros por status
   const booksByStatus = computed(() => {
@@ -53,7 +60,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       all: [] as Book[]
     }
     
-    books.value.forEach(book => {
+    currentBooks.value.forEach(book => {
       if (typeof book.status === 'number') {
         result[book.status as ReadingStatus].push(book)
       } else {
@@ -62,9 +69,20 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       }
     })
     
-    result.all = books.value
+    result.all = currentBooks.value
     return result
   })
+
+  // Método para definir que estamos visualizando a estante de um amigo
+  const setViewingFriend = (friendId: string | null) => {
+    console.log(`Definindo visualização de amigo: ${friendId || 'nenhum'}`);
+    viewingFriendId.value = friendId;
+    
+    // Se não estamos mais visualizando a estante de um amigo, limpar os livros dele
+    if (!friendId) {
+      friendBooks.value = [];
+    }
+  }
 
   // Fetch Books for the Logged User
   const fetchBooks = async () => {
@@ -148,6 +166,148 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       error.value = 'Erro ao buscar livros.'
     } finally {
       isLoading.value = false
+    }
+  }
+
+  // Fetch Friend's Books
+  const fetchFriendBooks = async (friendId: string) => {
+    if (!userId.value) {
+      console.warn('Tentativa de buscar livros sem usuário autenticado.')
+      return
+    }
+    
+    isLoading.value = true
+    error.value = null
+    setViewingFriend(friendId);
+    
+    try {
+      console.log('Buscando livros do amigo com ID:', friendId)
+      
+      // Usar a view friend_books_view
+      const { data, error: supabaseError } = await supabase
+        .from('friend_books_view')
+        .select('*')
+        .eq('user_id', friendId)
+        .or(`user_id_1.eq.${userId.value},user_id_2.eq.${userId.value}`)
+      
+      if (supabaseError) {
+        console.error('Erro ao buscar livros do amigo:', supabaseError)
+        throw supabaseError
+      }
+
+      if (data && data.length > 0) {
+        console.log(`Encontrados ${data.length} livros do amigo`)
+        
+        // Processar detalhes dos livros do amigo
+        const friendBooksWithDetails = data.map(book => {
+          // Formatação de data para exibição em formato brasileiro
+          const formatDate = (dateStr: string | null): string | null => {
+            if (!dateStr) return null;
+            const date = new Date(dateStr);
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+          };
+          
+          return {
+            ...book,
+            coverImage: book.cover_image_url,
+            dataInicioLeitura: formatDate(book.started_reading_at),
+            dataFinalLeitura: formatDate(book.finished_reading_at),
+          };
+        });
+
+        friendBooks.value = friendBooksWithDetails
+        console.log('Livros do amigo carregados com sucesso')
+      } else {
+        friendBooks.value = []
+        console.log('Nenhum livro encontrado para este amigo')
+      }
+    } catch (err: any) {
+      console.error('Erro ao buscar livros do amigo:', err)
+      error.value = 'Erro ao buscar livros do amigo.'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Fetch Friend's Book Details
+  const fetchFriendBookDetails = async (bookId: string, friendId: string) => {
+    error.value = null
+    if (!userId.value) return null
+    
+    try {
+      console.log(`Buscando detalhes do livro ${bookId} do amigo ${friendId}`)
+      
+      // Marcar que estamos vendo um livro do amigo
+      setViewingFriend(friendId);
+      
+      // Buscar o livro na view específica de amigos
+      const { data: book, error: bookError } = await supabase
+        .from('friend_books_view')
+        .select('*')
+        .eq('id', bookId)
+        .eq('user_id', friendId)
+        .single()
+      
+      if (bookError) {
+        console.error('Erro ao buscar detalhes do livro do amigo:', bookError)
+        throw bookError
+      }
+      
+      if (book) {
+        // Buscar as citações/frases favoritas do livro do amigo
+        const { data: quotes, error: quotesError } = await supabase
+          .from('quotes')
+          .select('*')
+          .eq('book_id', bookId)
+          .eq('user_id', friendId)
+        
+        if (quotesError) {
+          console.warn('Erro ao buscar citações do livro do amigo:', quotesError)
+          // Continuamos mesmo se não conseguirmos as citações
+        }
+        
+        // Preparar arrays de citações e páginas
+        const quoteTexts: string[] = []
+        const quotePages: (number | null)[] = []
+        
+        if (quotes && Array.isArray(quotes)) {
+          quotes.forEach(quote => {
+            quoteTexts.push(quote.text)
+            quotePages.push(quote.page)
+          })
+        }
+        
+        // Formatar datas para exibição
+        const formatDate = (dateStr: string | null): string | null => {
+          if (!dateStr) return null;
+          const date = new Date(dateStr);
+          return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+        }
+        
+        // Montar o objeto do livro com os detalhes necessários
+        const mappedBook = {
+          ...book,
+          coverImage: book.cover_image_url,
+          dataInicioLeitura: formatDate(book.started_reading_at),
+          dataFinalLeitura: formatDate(book.finished_reading_at),
+          quotes: quoteTexts,
+          quotePages: quotePages,
+          quotesData: quotes || [],
+        }
+        
+        // Definir como livro selecionado
+        selectedBook.value = mappedBook
+        
+        return selectedBook.value
+      } else {
+        error.value = 'Livro do amigo não encontrado.'
+        console.error('Livro do amigo não encontrado')
+        return null
+      }
+    } catch (err: any) {
+      console.error('Erro ao buscar detalhes do livro do amigo:', err)
+      error.value = 'Erro ao buscar detalhes do livro do amigo.'
+      return null
     }
   }
 
@@ -712,14 +872,18 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   }
 
   return {
-    books,
+    books: currentBooks, // Exportamos currentBooks em vez de books diretamente
+    friendBooks,
     booksByStatus,
     selectedBook,
     isLoading,
     isAuthenticated,
     error,
+    viewingFriendId,
+    setViewingFriend,
     fetchBooks,
-    fetchBookDetails,
+    fetchFriendBooks,
+    fetchFriendBookDetails,
     addBook,
     addPhase,
     editPhase,
