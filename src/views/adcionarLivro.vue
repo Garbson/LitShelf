@@ -7,7 +7,7 @@
       </h1>
 
       <!-- Campo de busca + botão -->
-      <v-row class="d-flex justify-center mb-6" style="width: 100%">
+      <v-row class="d-flex justify-center mb-1">
         <v-col cols="12" md="6" lg="5">
           <BaseTextField
             v-model="searchQuery"
@@ -17,7 +17,14 @@
             class="search-field rounded-lg mb-3"
             prepend-inner-icon="mdi-magnify"
           />
-          <v-btn @click="fetchBooks" color="primary" block class="search-button" size="large" elevation="2">
+          <v-btn
+            @click="fetchBooks"
+            color="primary"
+            block
+            class="search-button"
+            size="large"
+            elevation="2"
+          >
             <v-icon class="mr-2">mdi-book-search</v-icon>
             Pesquisar
           </v-btn>
@@ -53,21 +60,18 @@
                 :alt="book.volumeInfo.title"
                 height="200"
                 :cover="false"
-                style="object-fit: contain;"
+                style="object-fit: contain"
                 class="book-cover"
               />
             </div>
-            <v-card-title
-              class="text-subtitle-1 font-weight-bold text-truncate book-title"
-            >
+            <v-card-title class="text-subtitle-1 font-weight-bold text-truncate book-title">
               {{ book.volumeInfo.title }}
             </v-card-title>
-            <v-card-subtitle
-              class="text-caption text-truncate book-author"
-            >
-              <strong>Autor(es):</strong> {{ book.volumeInfo.authors?.join(", ") || "Desconhecido" }}
+            <v-card-subtitle class="text-caption text-truncate book-author">
+              <strong>Autor(es):</strong>
+              {{ book.volumeInfo.authors?.join(', ') || 'Desconhecido' }}
             </v-card-subtitle>
-            
+
             <!-- Seletor de status -->
             <v-card-text class="pb-0">
               <v-select
@@ -91,13 +95,15 @@
                 <template v-slot:item="{ item, props }">
                   <v-list-item v-bind="props">
                     <template v-slot:prepend>
-                      <v-icon :color="item?.raw?.color || 'grey'">{{ item?.raw?.icon || 'mdi-bookmark-outline' }}</v-icon>
+                      <v-icon :color="item?.raw?.color || 'grey'">{{
+                        item?.raw?.icon || 'mdi-bookmark-outline'
+                      }}</v-icon>
                     </template>
                   </v-list-item>
                 </template>
               </v-select>
             </v-card-text>
-            
+
             <v-card-actions class="d-flex justify-center mb-2">
               <v-btn
                 @click="addToBookshelf(book)"
@@ -113,32 +119,34 @@
         </v-col>
       </v-row>
 
-      <!-- Mensagens de status -->
-      <v-card
-        v-else-if="searchQuery && !loading && !books.length"
-        class="mt-6 text-center empty-results-card pa-8"
-      >
-        <v-icon size="64" color="info" class="mb-4">mdi-book-search-outline</v-icon>
-        <p class="text-h6 mb-4">
-          Nenhum livro encontrado.
-        </p>
-        <p class="text-body-2">
-          Tente usar palavras-chave diferentes ou verifique a ortografia do título ou autor.
-        </p>
-      </v-card>
-      
-      <v-card
-        v-else-if="!searchQuery && !books.length"
-        class="mt-6 text-center empty-results-card pa-8"
-      >
-        <v-icon size="64" color="primary" class="mb-4">mdi-bookshelf</v-icon>
-        <p class="text-h6 mb-4">
-          Digite o título do livro ou o nome do autor para começar a busca.
-        </p>
-        <p class="text-body-2">
-          Você pode adicionar múltiplos livros à sua estante e definir o status de leitura para cada um.
-        </p>
-      </v-card>
+      <!-- Mensagem quando não há resultados após uma pesquisa -->
+      <v-row class="d-flex justify-center" v-else-if="hasSearched && !loading && !books.length">
+        <v-col cols="12" md="6" lg="5">
+          <v-card class="mt-6 text-center empty-results-card pa-8">
+            <v-icon size="64" color="info" class="mb-4">mdi-book-search-outline</v-icon>
+            <p class="text-h6 mb-4">Nenhum livro encontrado.</p>
+            <p class="text-body-2">
+              Tente usar palavras-chave diferentes ou verifique a ortografia do título ou autor.
+            </p>
+          </v-card>
+        </v-col>
+      </v-row>
+
+      <!-- Mensagem inicial antes de pesquisar -->
+      <v-row class="d-flex justify-center" v-else-if="!hasSearched && !loading">
+        <v-col cols="12" md="6" lg="5" class="d-flex justify-center">
+          <v-card class="text-center empty-results-card pa-8">
+            <v-icon size="64" color="primary" class="mb-4">mdi-bookshelf</v-icon>
+            <p class="text-h6 mb-4">
+              Digite o título do livro ou o nome do autor para começar a busca.
+            </p>
+            <p class="text-body-2">
+              Você pode adicionar múltiplos livros à sua estante e definir o status de leitura para
+              cada um.
+            </p>
+          </v-card>
+        </v-col>
+      </v-row>
 
       <v-progress-linear
         v-if="loading"
@@ -165,9 +173,7 @@
           <v-btn color="primary" variant="tonal" @click="continueAdding">
             Continuar Adicionando
           </v-btn>
-          <v-btn color="primary" variant="elevated" @click="goToBookshelf">
-            Ver Estante
-          </v-btn>
+          <v-btn color="primary" variant="elevated" @click="goToBookshelf"> Ver Estante </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -179,12 +185,10 @@
           <v-icon color="primary" class="mr-2">mdi-book-settings</v-icon>
           Definir Status do Livro
         </v-card-title>
-        
+
         <v-card-text class="mt-4">
-          <p class="text-body-1 mb-4">
-            Defina o status de leitura para "{{ selectedBookTitle }}"
-          </p>
-          
+          <p class="text-body-1 mb-4">Defina o status de leitura para "{{ selectedBookTitle }}"</p>
+
           <!-- Status selector -->
           <v-select
             v-model="dialogBookStatus"
@@ -207,12 +211,14 @@
             <template v-slot:item="{ item, props }">
               <v-list-item v-bind="props">
                 <template v-slot:prepend>
-                  <v-icon :color="item?.raw?.color || 'grey'">{{ item?.raw?.icon || 'mdi-bookmark-outline' }}</v-icon>
+                  <v-icon :color="item?.raw?.color || 'grey'">{{
+                    item?.raw?.icon || 'mdi-bookmark-outline'
+                  }}</v-icon>
                 </template>
               </v-list-item>
             </template>
           </v-select>
-          
+
           <!-- Data de início (para "Estou Lendo") -->
           <BaseTextField
             v-if="dialogBookStatus === 2"
@@ -222,7 +228,7 @@
             hint="Deixe em branco para usar a data atual"
             persistent-hint
           />
-          
+
           <!-- Datas de início e fim (para "Já Li") -->
           <template v-if="dialogBookStatus === 1">
             <BaseTextField
@@ -232,7 +238,7 @@
               hint="Opcional"
               persistent-hint
             />
-            
+
             <BaseTextField
               v-model="dialogEndDate"
               label="Data de conclusão da leitura"
@@ -242,14 +248,10 @@
             />
           </template>
         </v-card-text>
-        
+
         <v-card-actions class="pt-2">
           <v-spacer></v-spacer>
-          <v-btn
-            variant="elevated"
-            color="primary"
-            @click="confirmAddBook"
-          >
+          <v-btn variant="elevated" color="primary" @click="confirmAddBook">
             Adicionar Livro
           </v-btn>
         </v-card-actions>
@@ -259,165 +261,166 @@
 </template>
 
 <script lang="ts" setup>
-import BaseTextField from '@/components/BaseTextField.vue';
-import { searchBooks } from "@/services/googleBooks";
-import { useBookshelfStore } from "@/stores/useBookshelfStore";
-import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import BaseTextField from '@/components/BaseTextField.vue'
+import { searchBooks } from '@/services/googleBooks'
+import { useBookshelfStore } from '@/stores/useBookshelfStore'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-const searchQuery = ref("");
-const books = ref([]);
-const loading = ref(false);
-const error = ref<string | null>(null);
-const showNotification = ref(false);
-const notificationText = ref("");
-const showSuccessDialog = ref(false);
-const lastAddedBook = ref("");
-const showStatusDialog = ref(false);
-const selectedBookTitle = ref("");
-const selectedBook = ref<any | null>(null);
-const dialogBookStatus = ref(0);
-const dialogStartDate = ref("");
-const dialogEndDate = ref("");
-const router = useRouter();
+const searchQuery = ref('')
+const books = ref([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const showNotification = ref(false)
+const notificationText = ref('')
+const showSuccessDialog = ref(false)
+const lastAddedBook = ref('')
+const showStatusDialog = ref(false)
+const selectedBookTitle = ref('')
+const selectedBook = ref<any | null>(null)
+const dialogBookStatus = ref(0)
+const dialogStartDate = ref('')
+const dialogEndDate = ref('')
+const hasSearched = ref(false)
+const router = useRouter()
 
-const bookshelfStore = useBookshelfStore();
+const bookshelfStore = useBookshelfStore()
 
 const statusOptions = [
-  { label: "Quero Ler", value: 0, color: "grey", icon: "mdi-bookmark-outline" },
-  { label: "Já Li", value: 1, color: "success", icon: "mdi-check-circle" },
-  { label: "Estou Lendo", value: 2, color: "info", icon: "mdi-book-open-variant" },
-];
+  { label: 'Quero Ler', value: 0, color: 'grey', icon: 'mdi-bookmark-outline' },
+  { label: 'Já Li', value: 1, color: 'success', icon: 'mdi-check-circle' },
+  { label: 'Estou Lendo', value: 2, color: 'info', icon: 'mdi-book-open-variant' },
+]
 
 const fetchBooks = async () => {
-  if (!searchQuery.value.trim()) return;
-  loading.value = true;
-  books.value = [];
-  error.value = null;
+  if (!searchQuery.value.trim()) return
+  loading.value = true
+  books.value = []
+  error.value = null
+  hasSearched.value = true
   try {
-    const results = await searchBooks(searchQuery.value);
-    books.value = results.map(book => ({
+    const results = await searchBooks(searchQuery.value)
+    books.value = results.map((book) => ({
       ...book,
-      readingStatus: 0  // Padrão: "Quero ler" (0)
-    }));
+      readingStatus: 0, // Padrão: "Quero ler" (0)
+    }))
   } catch (err: any) {
-    console.error("Erro ao buscar livros:", err);
-    error.value = "Erro ao buscar livros.";
+    console.error('Erro ao buscar livros:', err)
+    error.value = 'Erro ao buscar livros.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 onMounted(() => {
-  bookshelfStore.fetchBooks();
-});
+  bookshelfStore.fetchBooks()
+})
 
 const addToBookshelf = async (book: any) => {
   try {
     // Armazenar referência temporária ao livro selecionado
-    selectedBookTitle.value = book.volumeInfo.title;
-    selectedBook.value = book;
-    dialogBookStatus.value = book.readingStatus || 0;
-    
+    selectedBookTitle.value = book.volumeInfo.title
+    selectedBook.value = book
+    dialogBookStatus.value = book.readingStatus || 0
+
     // Abrir diálogo para definir status e datas
-    showStatusDialog.value = true;
+    showStatusDialog.value = true
   } catch (err) {
-    console.error("Erro ao preparar adição do livro:", err);
-    error.value = "Erro ao adicionar livro à estante.";
+    console.error('Erro ao preparar adição do livro:', err)
+    error.value = 'Erro ao adicionar livro à estante.'
   }
-};
+}
 
 const confirmAddBook = async () => {
   try {
     if (!selectedBook.value) {
-      throw new Error("Livro não selecionado");
+      throw new Error('Livro não selecionado')
     }
 
-    const book = selectedBook.value;
-    
+    const book = selectedBook.value
+
     // Função auxiliar para formatar data
     const formatDate = (dateStr: string | null): string | null => {
-      if (!dateStr) return null;
-      const date = new Date(dateStr);
-      return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-    };
+      if (!dateStr) return null
+      const date = new Date(dateStr)
+      return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`
+    }
 
-    const today = new Date();
-    const formattedToday = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-    
+    const today = new Date()
+    const formattedToday = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+
     // Definir datas com base no status
-    let dataInicioLeitura = formatDate(dialogStartDate.value);
-    let dataFinalLeitura = formatDate(dialogEndDate.value);
+    let dataInicioLeitura = formatDate(dialogStartDate.value)
+    let dataFinalLeitura = formatDate(dialogEndDate.value)
 
     // Definir valores padrão para as datas se estiverem vazias
-    if (dialogBookStatus.value === 2 && !dataInicioLeitura) { // Estou lendo
-      dataInicioLeitura = formattedToday;
-    } else if (dialogBookStatus.value === 1) { // Já li
+    if (dialogBookStatus.value === 2 && !dataInicioLeitura) {
+      // Estou lendo
+      dataInicioLeitura = formattedToday
+    } else if (dialogBookStatus.value === 1) {
+      // Já li
       if (!dataFinalLeitura) {
-        dataFinalLeitura = formattedToday;
+        dataFinalLeitura = formattedToday
       }
     }
 
     // Criar objeto do livro para salvar
     const bookData = {
       title: book.volumeInfo.title,
-      author: book.volumeInfo.authors?.join(", ") || "Desconhecido",
-      coverImage: book.volumeInfo.imageLinks?.thumbnail || "",
-      description: book.volumeInfo.description || "",
+      author: book.volumeInfo.authors?.join(', ') || 'Desconhecido',
+      coverImage: book.volumeInfo.imageLinks?.thumbnail || '',
+      description: book.volumeInfo.description || '',
       pageCount: book.volumeInfo.pageCount || null,
       publishedDate: book.volumeInfo.publishedDate || null,
       status: dialogBookStatus.value,
       dataInicioLeitura: dataInicioLeitura,
       dataFinalLeitura: dataFinalLeitura,
       addedAt: new Date().toISOString().split('T')[0], // Formato YYYY-MM-DD
-    };
+    }
 
-
-
-    
     // Salvar no banco de dados
-    await bookshelfStore.addBook(bookData);
-    
+    await bookshelfStore.addBook(bookData)
+
     // Atualizar UI
-    lastAddedBook.value = book.volumeInfo.title;
-    showSuccessDialog.value = true;
-    showStatusDialog.value = false;
-    
+    lastAddedBook.value = book.volumeInfo.title
+    showSuccessDialog.value = true
+    showStatusDialog.value = false
+
     // Reset dos valores do diálogo
-    dialogStartDate.value = "";
-    dialogEndDate.value = "";
-    dialogBookStatus.value = 0;
-    
-    notificationText.value = `"${book.volumeInfo.title}" foi adicionado à sua estante!`;
-    showNotification.value = true;
+    dialogStartDate.value = ''
+    dialogEndDate.value = ''
+    dialogBookStatus.value = 0
+
+    notificationText.value = `"${book.volumeInfo.title}" foi adicionado à sua estante!`
+    showNotification.value = true
   } catch (err) {
-    console.error("Erro ao adicionar livro:", err);
-    error.value = "Erro ao adicionar livro à estante.";
+    console.error('Erro ao adicionar livro:', err)
+    error.value = 'Erro ao adicionar livro à estante.'
   }
-};
+}
 
 const continueAdding = () => {
-  showSuccessDialog.value = false;
-};
+  showSuccessDialog.value = false
+}
 
 const goToBookshelf = () => {
-  router.push("/bookshelf");
-};
+  router.push('/bookshelf')
+}
 
 const getStatusColor = (status: number): string => {
-  const option = statusOptions.find(option => option.value === status);
-  return option?.color || "grey";
-};
+  const option = statusOptions.find((option) => option.value === status)
+  return option?.color || 'grey'
+}
 
 const getStatusIcon = (status: number): string => {
-  const option = statusOptions.find(option => option.value === status);
-  return option?.icon || "mdi-bookmark-outline";
-};
+  const option = statusOptions.find((option) => option.value === status)
+  return option?.icon || 'mdi-bookmark-outline'
+}
 
 const getStatusLabel = (status: number): string => {
-  const option = statusOptions.find(option => option.value === status);
-  return option?.label || "Quero Ler";
-};
+  const option = statusOptions.find((option) => option.value === status)
+  return option?.label || 'Quero Ler'
+}
 </script>
 
 <style scoped>
@@ -433,7 +436,9 @@ const getStatusLabel = (status: number): string => {
 }
 
 .book-card {
-  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  transition:
+    transform 0.3s ease-in-out,
+    box-shadow 0.3s ease-in-out;
   border-radius: 16px;
   overflow: hidden;
   background-color: rgb(var(--v-theme-surface));
@@ -506,7 +511,6 @@ const getStatusLabel = (status: number): string => {
   border-radius: 16px;
   background-color: rgb(var(--v-theme-surface));
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
-  margin: 0 auto;
+  width: 100%;
 }
 </style>

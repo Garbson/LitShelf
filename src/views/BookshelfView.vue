@@ -14,7 +14,7 @@
       </h1>
 
       <!-- Filtros e pesquisa -->
-      <v-row class="mb-6 d-flex justify-center">
+      <v-row class="mb-6 px-md-15 d-flex justify-center">
         <v-col cols="12" sm="6" md="4">
           <BaseTextField
             v-model="searchQuery"
@@ -73,7 +73,7 @@
       </v-alert>
 
       <!-- Lista de livros filtrados -->
-      <v-row v-if="paginatedBooks.length" justify="center" align="start" dense>
+      <v-row v-if="paginatedBooks.length" justify="center"  align="start">
         <v-col
           v-for="book in paginatedBooks"
           :key="book.id"
@@ -162,27 +162,7 @@
         ></v-pagination>
       </div>
 
-      <!-- Mensagem de nenhum livro -->
-      <v-card 
-        v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error && !friendId" 
-        class="pa-8 text-center empty-bookshelf-card"
-      >
-        <v-icon size="64" color="primary" class="mb-4">mdi-bookshelf</v-icon>
-        <p class="text-h6 mb-4">
-          {{ computedBooks.length === 0 ? 
-            'Sua estante está vazia.' : 
-            'Nenhum livro corresponde aos critérios de busca.' 
-          }}
-        </p>
-        <v-btn 
-          color="primary" 
-          :to="'/addBook'"
-          prepend-icon="mdi-plus"
-          variant="elevated"
-        >
-          Adicionar Livros
-        </v-btn>
-      </v-card>
+
 
       <!-- Mensagem de nenhum livro do amigo -->
       <v-card 
@@ -775,8 +755,6 @@ const goToMyBookshelf = async () => {
 .sort-field {
   background: rgb(var(--v-theme-surface));
   border-radius: 8px;
-  width: 280px;
-  max-width: 100%;
   margin: 0 auto;
 }
 
