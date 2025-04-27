@@ -3,10 +3,10 @@
     <div class="navbar-content">
       <!-- Logo da aplicação -->
       <div class="navbar-logo">
-        <router-link to="/bookshelf" class="logo-link">
+        <a @click="goToBookshelf" class="logo-link" style="cursor: pointer">
           <v-icon icon="mdi-book-open-page-variant" class="logo-icon" />
           <h1 class="logo-text text-serif">LitShelf</h1>
-        </router-link>
+        </a>
       </div>
 
       <!-- Botões de navegação centralizados (visíveis apenas em desktop) -->
@@ -16,7 +16,7 @@
           color="accent" 
           size="large" 
           class="nav-button"
-          to="/bookshelf" 
+          @click="goToBookshelf"
           :class="{ 'active-route': isActiveRoute('/bookshelf') }"
         >
           <v-icon class="mr-2">mdi-bookshelf</v-icon>
@@ -136,9 +136,8 @@
       <div v-if="mobileMenuOpen" class="mobile-menu d-md-none">
         <v-list>
           <v-list-item 
-            to="/bookshelf" 
+            @click="goToBookshelf"
             :active="isActiveRoute('/bookshelf')"
-            @click="mobileMenuOpen = false"
           >
             <template v-slot:prepend>
               <v-icon color="accent">mdi-bookshelf</v-icon>
@@ -210,11 +209,13 @@
 
 <script lang="ts" setup>
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useBookshelfStore } from "@/stores/useBookshelfStore";
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useTheme } from "vuetify";
 
 const authStore = useAuthStore();
+const bookshelfStore = useBookshelfStore();
 const router = useRouter();
 const route = useRoute();
 const theme = useTheme();
@@ -237,6 +238,23 @@ const userDisplayName = computed(() => {
 // Verificar se a rota atual está ativa
 const isActiveRoute = (path: string) => {
   return route.path === path || route.path.startsWith(path);
+};
+
+// Função para navegar para a estante pessoal com reset completo do estado
+const goToBookshelf = async () => {
+  console.log("Navegando para minha estante via menu...");
+  
+  // Limpar o estado do store para garantir que não há mais referência aos livros do amigo
+  bookshelfStore.setViewingFriend(null);
+  
+  // Forçar uma nova consulta para carregar apenas os livros do usuário atual
+  await bookshelfStore.fetchBooks();
+  
+  // Fechar menu móvel
+  mobileMenuOpen.value = false;
+  
+  // Navegar para a página da estante sem parâmetros de consulta
+  router.push('/bookshelf');
 };
 
 // Carregar preferência de tema do localStorage

@@ -238,12 +238,25 @@
       v-if="friendId"
       color="primary"
       :to="'/friends'"
-      prepend-icon="mdi-arrow-left"
+      append-icon="mdi-arrow-right"
       size="large"
       class="back-to-friends-btn"
       variant="elevated"
     >
       Voltar para Amigos
+    </v-btn>
+    
+    <!-- Botão destacado para voltar à própria estante quando estiver vendo estante de amigo -->
+    <v-btn
+      v-if="friendId"
+      color="accent"
+      @click="goToMyBookshelf"
+      prepend-icon="mdi-bookshelf"
+      size="large"
+      class="my-bookshelf-btn"
+      variant="elevated"
+    >
+      Ir para Minha Estante
     </v-btn>
 
     <!-- Snackbar para notificações -->
@@ -600,6 +613,28 @@ const resetFilters = () => {
   sortOption.value = "title_asc";
   currentPage.value = 1;
 };
+
+// Função para voltar à própria estante
+const goToMyBookshelf = async () => {
+  console.log("Navegando para minha estante...");
+  friendInfo.value = null;
+  
+  // Limpar o estado do store para garantir que não há mais referência aos livros do amigo
+  bookshelfStore.setViewingFriend(null);
+  friendBooks.value = []; // Limpar o array local também
+  
+  // Forçar uma nova consulta para carregar apenas os livros do usuário atual
+  console.log("Recarregando meus livros...");
+  await bookshelfStore.fetchBooks();
+  
+  // Navegar para a página da estante sem parâmetros de consulta
+  router.push('/bookshelf');
+  
+  // Mostrar confirmação para o usuário
+  snackbarText.value = "Voltando para sua estante";
+  snackbarColor.value = "info";
+  showSnackbar.value = true;
+};
 </script>
 
 <style scoped>
@@ -626,6 +661,8 @@ const resetFilters = () => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 280px !important;
+  max-width: 280px;
 }
 
 .book-card:hover {
@@ -738,6 +775,9 @@ const resetFilters = () => {
 .sort-field {
   background: rgb(var(--v-theme-surface));
   border-radius: 8px;
+  width: 280px;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .empty-bookshelf-card {
@@ -758,6 +798,13 @@ const resetFilters = () => {
   position: fixed;
   bottom: 16px;
   right: 16px;
+  z-index: 1000;
+}
+
+.my-bookshelf-btn {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
   z-index: 1000;
 }
 
