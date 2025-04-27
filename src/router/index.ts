@@ -1,14 +1,15 @@
 import { supabase } from '@/supabase'; // Importação do Supabase
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router';
 
 // Importando as views
-import adcionarLivro from '../views/adcionarLivro.vue'
-import BookDetailsView from '../views/BookDetailsView.vue'
-import BookshelfView from '../views/BookshelfView.vue'
-import DashboardView from '../views/DashboardView.vue'
-import FriendsView from '../views/FriendsView.vue'
-import LoginView from '../views/LoginView.vue'
-import SignupView from '../views/SignupView.vue'
+import adcionarLivro from '../views/adcionarLivro.vue';
+import BookDetailsView from '../views/BookDetailsView.vue';
+import BookshelfView from '../views/BookshelfView.vue';
+import DashboardView from '../views/DashboardView.vue';
+import FriendsView from '../views/FriendsView.vue';
+import LoginView from '../views/LoginView.vue';
+import ProfileView from '../views/ProfileView.vue';
+import SignupView from '../views/SignupView.vue';
 
 // Função para verificar se o usuário está autenticado
 const getCurrentUser = async () => {
@@ -65,6 +66,12 @@ const routes = [
     path: '/friends',
     name: 'friends',
     component: FriendsView,
+    beforeEnter: requireAuth, // Protegendo a rota
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: ProfileView,
     beforeEnter: requireAuth, // Protegendo a rota
   },
   {

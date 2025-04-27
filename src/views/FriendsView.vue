@@ -23,44 +23,80 @@
             </v-card-title>
             
             <v-card-text>
-              <v-form @submit.prevent="searchUsers">
-                <v-text-field
-                  v-model="searchQuery"
-                  label="Buscar por email"
-                  variant="outlined"
-                  density="comfortable"
-                  prepend-inner-icon="mdi-magnify"
-                  append-inner-icon="mdi-send"
-                  rounded="lg"
-                  class="mb-3"
-                  @click:append-inner="searchUsers"
-                />
+              <v-tabs v-model="searchTab" bg-color="transparent">
+                <v-tab value="search" class="text-subtitle-2">Buscar</v-tab>
+                <v-tab value="all" class="text-subtitle-2">Ver todos</v-tab>
+              </v-tabs>
+              
+              <v-divider class="mb-3 mt-1"></v-divider>
+              
+              <v-window class="py-2" v-model="searchTab">
+                <!-- Aba de busca -->
+                <v-window-item  value="search">
+                  <v-form @submit.prevent="searchUsers">
+                    <v-text-field
+                      v-model="searchQuery"
+                      label="Buscar por ID, email ou nome"
+                      variant="outlined"
+                      density="comfortable"
+                      prepend-inner-icon="mdi-magnify"
+                      append-inner-icon="mdi-send"
+                      rounded="lg"
+                      hide-details
+                      class="mb-3"
+                      @click:append-inner="searchUsers"
+                      placeholder="Digite o ID, email ou nome do usuário"
+                    />
+                    
+                    <p class="text-caption mb-4">
+                      Digite o email exato, ID completo ou nome do usuário para adicionar como amigo.
+                    </p>
+                  </v-form>
+                </v-window-item>
                 
-                <p class="text-caption mb-4">
-                  Encontre amigos para compartilhar sua experiência literária.
-                </p>
-              </v-form>
+                <!-- Aba de todos os usuários -->
+                <v-window-item value="all">
+                  <div class="d-flex align-center mb-3">
+                    <v-btn
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                      prepend-icon="mdi-refresh"
+                      @click="loadAllUsers"
+                      :loading="isLoadingAllUsers"
+                      :disabled="isLoadingAllUsers"
+                      class="mb-3"
+                    >
+                      Carregar usuários
+                    </v-btn>
+                  </div>
+                  <p class="text-caption mb-4">
+                    Veja todos os usuários disponíveis na plataforma.
+                  </p>
+                </v-window-item>
+              </v-window>
               
               <v-divider class="my-3" />
               
               <!-- Resultados da busca -->
-              <div v-if="searchResults.length > 0" class="search-results mt-4">
-                <h3 class="text-subtitle-1 mb-3">Resultados da busca</h3>
+              <div v-if="displayedUsers.length > 0" class="search-results mt-4">
+                <h3 class="text-subtitle-1 mb-3">Resultados</h3>
                 
                 <v-list lines="two">
                   <v-list-item
-                    v-for="user in searchResults"
+                    v-for="user in displayedUsers"
                     :key="user.id"
                     class="mb-2 rounded-lg search-result-item"
                   >
                     <template v-slot:prepend>
                       <v-avatar color="primary">
-                        <v-icon color="white">mdi-account</v-icon>
+                        <v-img v-if="user.photoURL" :src="user.photoURL" />
+                        <v-icon v-else color="white">mdi-account</v-icon>
                       </v-avatar>
                     </template>
                     
-                    <v-list-item-title>{{ user.displayName || user.email }}</v-list-item-title>
-                    <v-list-item-subtitle>{{ user.email }}</v-list-item-subtitle>
+                    <v-list-item-title>{{ user.displayName || 'Usuário' }}</v-list-item-title>
+                    <v-list-item-subtitle class="text-truncate">ID: {{ user.id }}</v-list-item-subtitle>
                     
                     <template v-slot:append>
                       <v-btn 
@@ -76,7 +112,7 @@
                 </v-list>
               </div>
               
-              <div v-else-if="hasSearched" class="text-center py-4 text-medium-emphasis">
+              <div v-else-if="hasSearched || allUsersLoaded" class="text-center py-4 text-medium-emphasis">
                 <v-icon icon="mdi-account-search-outline" size="40" color="grey" />
                 <p class="mt-2">Nenhum usuário encontrado.</p>
               </div>
@@ -88,7 +124,7 @@
             <v-card-title class="d-flex align-center justify-space-between text-h6 font-weight-bold">
               <div>
                 <v-icon icon="mdi-account-clock" class="me-2" color="warning" />
-                Solicitações pendentes
+                Solicitações recebidas
               </div>
               <v-chip color="warning" size="small" v-if="friendsStore.friendRequests && friendsStore.friendRequests.length > 0">
                 {{ friendsStore.friendRequests.length }}
@@ -129,6 +165,65 @@
               <div v-else class="text-center py-4 text-medium-emphasis">
                 <v-icon icon="mdi-check-circle-outline" size="40" color="grey" />
                 <p class="mt-2">Nenhuma solicitação pendente.</p>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- Solicitações enviadas -->
+          <v-card class="rounded-xl pa-4 mb-6 animate-slide-up" elevation="2" :style="{ animationDelay: '300ms' }">
+            <v-card-title class="d-flex align-center justify-space-between text-h6 font-weight-bold">
+              <div>
+                <v-icon icon="mdi-account-arrow-right" class="me-2" color="info" />
+                Solicitações enviadas
+              </div>
+              <v-chip color="info" size="small" v-if="friendsStore.sentRequestsPending && friendsStore.sentRequestsPending.length > 0">
+                {{ friendsStore.sentRequestsPending.length }}
+              </v-chip>
+            </v-card-title>
+            
+            <v-card-text>
+              <v-list v-if="friendsStore.sentRequestsPending && friendsStore.sentRequestsPending.length > 0" class="pa-0">
+                <v-list-item
+                  v-for="request in friendsStore.sentRequestsPending"
+                  :key="request.id"
+                  class="mb-2 rounded-lg request-item"
+                >
+                  <v-list-item-title>{{ request.senderName || 'Usuário' }}</v-list-item-title>
+                  <v-list-item-subtitle class="text-caption">
+                    Para: {{ request.senderEmail }} 
+                    <v-tooltip location="top">
+                      <template v-slot:activator="{ props }">
+                        <v-icon 
+                          v-bind="props"
+                          size="small" 
+                          color="info" 
+                          class="ms-1"
+                        >
+                          mdi-information-outline
+                        </v-icon>
+                      </template>
+                      <span>ID: {{ request.user_id_1 === authStore.userId ? request.user_id_2 : request.user_id_1 }}</span>
+                    </v-tooltip>
+                  </v-list-item-subtitle>
+                  
+                  <template v-slot:append>
+                    <div class="d-flex gap-2">
+                      <v-chip size="small" color="info">Pendente</v-chip>
+                      <v-btn 
+                        variant="outlined" 
+                        color="error" 
+                        size="small"
+                        icon="mdi-close"
+                        @click="cancelFriendRequest(request.id)"
+                      />
+                    </div>
+                  </template>
+                </v-list-item>
+              </v-list>
+              
+              <div v-else class="text-center py-4 text-medium-emphasis">
+                <v-icon icon="mdi-account-arrow-right-outline" size="40" color="grey" />
+                <p class="mt-2">Nenhuma solicitação enviada.</p>
               </div>
             </v-card-text>
           </v-card>
@@ -345,6 +440,7 @@ const authStore = useAuthStore();
 const friendsStore = useFriendsStore();
 const searchQuery = ref('');
 const searchResults = ref<any[]>([]);
+const displayedUsers = ref<any[]>([]);
 const hasSearched = ref(false);
 const isProcessingRequest = ref<Record<string, boolean>>({});
 const showSnackbar = ref(false);
@@ -353,8 +449,12 @@ const snackbarColor = ref('success');
 const selectedFriend = ref<any>(null);
 const friendBooks = ref<any[]>([]);
 const activeTab = ref('friends');
+const searchTab = ref('search');
 const confirmRemoveFriend = ref(false);
 const friendToRemoveId = ref('');
+const isLoadingAllUsers = ref(false);
+const allUsersLoaded = ref(false);
+const isLoadingAuthUsers = ref(false);
 
 // Buscar usuários pelo email
 const searchUsers = async () => {
@@ -378,15 +478,77 @@ const searchUsers = async () => {
         isSender: user.isSender
       }));
     }
+    displayedUsers.value = searchResults.value;
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
     showNotification('Erro ao buscar usuários', 'error');
   }
 };
 
+// Carregar todos os usuários
+const loadAllUsers = async () => {
+  try {
+    isLoadingAllUsers.value = true;
+    allUsersLoaded.value = false;
+    displayedUsers.value = [];
+    
+    // Usar a nova função que busca os usuários públicos
+    const result = await friendsStore.fetchAllUsersPublic();
+    
+    if (result.users && result.users.length > 0) {
+      displayedUsers.value = result.users.map(user => ({
+        id: user.id,
+        email: user.email,
+        displayName: user.name,
+        photoURL: user.photoUrl,
+        friendshipStatus: user.friendshipStatus,
+        friendshipId: user.friendshipId,
+        isSender: user.isSender
+      }));
+      allUsersLoaded.value = true;
+      
+      console.log(`Encontrados ${displayedUsers.value.length} usuários`);
+    } else {
+      console.log("Nenhum usuário encontrado");
+    }
+  } catch (error) {
+    console.error('Erro ao carregar todos os usuários:', error);
+    showNotification('Erro ao carregar usuários', 'error');
+  } finally {
+    isLoadingAllUsers.value = false;
+  }
+};
+
+// Carregar usuários do auth.users
+const loadAuthUsers = async () => {
+  try {
+    isLoadingAuthUsers.value = true;
+    displayedUsers.value = [];
+    
+    const result = await friendsStore.fetchAuthUsers();
+    
+    if (result.users && result.users.length > 0) {
+      displayedUsers.value = result.users.map(user => ({
+        id: user.id,
+        email: user.email,
+        displayName: user.name,
+        photoURL: user.photoUrl,
+        friendshipStatus: user.friendshipStatus,
+        friendshipId: user.friendshipId,
+        isSender: user.isSender
+      }));
+    }
+  } catch (error) {
+    console.error('Erro ao carregar usuários do auth.users:', error);
+    showNotification('Erro ao carregar usuários do auth.users', 'error');
+  } finally {
+    isLoadingAuthUsers.value = false;
+  }
+};
+
 // Determinar o ícone a ser exibido no botão de ação de amizade
 const getFriendshipIcon = (userId: string) => {
-  const user = searchResults.value.find(u => u.id === userId);
+  const user = displayedUsers.value.find(u => u.id === userId);
   
   if (!user) return 'mdi-account-plus';
   
@@ -404,7 +566,7 @@ const getFriendshipIcon = (userId: string) => {
 
 // Determinar a cor do botão de ação de amizade
 const getFriendshipColor = (userId: string) => {
-  const user = searchResults.value.find(u => u.id === userId);
+  const user = displayedUsers.value.find(u => u.id === userId);
   
   if (!user) return 'success';
   
@@ -487,7 +649,8 @@ const acceptFriendRequest = async (requestId: string) => {
     
     if (success.success) {
       showNotification('Amizade aceita com sucesso!');
-      // A lista de amigos será atualizada automaticamente via subscriptions
+      // Garantir que a lista de amigos seja atualizada explicitamente
+      await friendsStore.fetchFriends();
     } else {
       showNotification('Erro ao aceitar solicitação', 'error');
     }
@@ -511,6 +674,23 @@ const rejectFriendRequest = async (requestId: string) => {
   } catch (error) {
     console.error('Erro ao rejeitar solicitação de amizade:', error);
     showNotification('Erro ao rejeitar solicitação', 'error');
+  }
+};
+
+// Cancelar solicitação de amizade enviada
+const cancelFriendRequest = async (requestId: string) => {
+  try {
+    const success = await friendsStore.cancelFriendRequest(requestId);
+    
+    if (success) {
+      showNotification('Solicitação de amizade cancelada');
+      await friendsStore.fetchSentRequests(); // Atualizar lista de solicitações enviadas
+    } else {
+      showNotification('Erro ao cancelar solicitação', 'error');
+    }
+  } catch (error) {
+    console.error('Erro ao cancelar solicitação de amizade:', error);
+    showNotification('Erro ao cancelar solicitação', 'error');
   }
 };
 
@@ -607,6 +787,7 @@ onMounted(async () => {
     // Inicializar buscando amigos e solicitações pendentes
     await friendsStore.fetchFriends();
     await friendsStore.fetchFriendRequests();
+    await friendsStore.fetchSentRequests();
   } catch (error) {
     console.error('Erro ao carregar dados de amigos:', error);
     showNotification('Erro ao carregar seus amigos', 'error');

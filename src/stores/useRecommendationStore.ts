@@ -174,66 +174,71 @@ export const useRecommendationStore = defineStore('recommendation', () => {
       
       if (supaError) throw supaError;
       
-      if (data) {
-        // Se conseguimos os dados, mas não temos as informações relacionadas
-        // precisamos buscar os detalhes do usuário e do livro separadamente
-        const userIds = [...new Set(data.map(rec => rec.sender_id))];
-        const bookIds = [...new Set(data.map(rec => rec.book_id))];
-        
-        // Buscar usuários
-        const { data: usersData } = await supabase
-          .from('profiles')
-          .select('id, name, email, profile_picture_url')
-          .in('id', userIds);
-          
-        const usersMap = (usersData || []).reduce((acc, user) => {
-          acc[user.id] = user;
-          return acc;
-        }, {});
-        
-        // Buscar livros
-        const { data: booksData } = await supabase
-          .from('books')
-          .select('id, title, author, cover_image_url, google_book_id')
-          .in('id', bookIds);
-          
-        const booksMap = (booksData || []).reduce((acc, book) => {
-          acc[book.id] = book;
-          return acc;
-        }, {});
-        
-        // Mapear os dados completos
-        receivedRecommendations.value = data.map(rec => {
-          const user = usersMap[rec.sender_id] || {};
-          const book = booksMap[rec.book_id] || {};
-          
-          return {
-            id: rec.id,
-            bookId: rec.book_id,
-            senderId: rec.sender_id,
-            senderName: user.name || 'Usuário',
-            senderEmail: user.email,
-            senderPhotoURL: user.profile_picture_url,
-            recipientId: authStore.userId,
-            status: rec.status,
-            message: rec.message || '',
-            createdAt: new Date(rec.created_at),
-            acceptedAt: rec.accepted_at ? new Date(rec.accepted_at) : null,
-            rejectedAt: rec.rejected_at ? new Date(rec.rejected_at) : null,
-            book: {
-              id: book.id,
-              title: book.title,
-              authors: book.author,
-              coverUrl: book.cover_image_url,
-              isbn: book.google_book_id
-            }
-          };
-        });
-        
-        // Salvar no localStorage como backup
-        localStorage.setItem('receivedRecommendations', 
-          JSON.stringify(receivedRecommendations.value));
+      // Se não tiver dados, inicializa um array vazio em vez de mostrar erro
+      if (!data || data.length === 0) {
+        console.log('Nenhuma recomendação recebida encontrada');
+        receivedRecommendations.value = [];
+        return;
       }
+      
+      // Se conseguimos os dados, mas não temos as informações relacionadas
+      // precisamos buscar os detalhes do usuário e do livro separadamente
+      const userIds = [...new Set(data.map(rec => rec.sender_id))];
+      const bookIds = [...new Set(data.map(rec => rec.book_id))];
+      
+      // Buscar usuários
+      const { data: usersData } = await supabase
+        .from('profiles')
+        .select('id, name, email, profile_picture_url')
+        .in('id', userIds);
+        
+      const usersMap = (usersData || []).reduce((acc, user) => {
+        acc[user.id] = user;
+        return acc;
+      }, {});
+      
+      // Buscar livros
+      const { data: booksData } = await supabase
+        .from('books')
+        .select('id, title, author, cover_image_url, google_book_id')
+        .in('id', bookIds);
+        
+      const booksMap = (booksData || []).reduce((acc, book) => {
+        acc[book.id] = book;
+        return acc;
+      }, {});
+      
+      // Mapear os dados completos
+      receivedRecommendations.value = data.map(rec => {
+        const user = usersMap[rec.sender_id] || {};
+        const book = booksMap[rec.book_id] || {};
+        
+        return {
+          id: rec.id,
+          bookId: rec.book_id,
+          senderId: rec.sender_id,
+          senderName: user.name || 'Usuário',
+          senderEmail: user.email,
+          senderPhotoURL: user.profile_picture_url,
+          recipientId: authStore.userId,
+          status: rec.status,
+          message: rec.message || '',
+          createdAt: new Date(rec.created_at),
+          acceptedAt: rec.accepted_at ? new Date(rec.accepted_at) : null,
+          rejectedAt: rec.rejected_at ? new Date(rec.rejected_at) : null,
+          book: {
+            id: book.id,
+            title: book.title,
+            authors: book.author,
+            coverUrl: book.cover_image_url,
+            isbn: book.google_book_id
+          }
+        };
+      });
+      
+      // Salvar no localStorage como backup
+      localStorage.setItem('receivedRecommendations', 
+        JSON.stringify(receivedRecommendations.value));
     } catch (err) {
       console.error('Erro ao buscar recomendações recebidas:', err);
       error.value = 'Não foi possível carregar suas recomendações de livros.';
@@ -408,62 +413,67 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         throw supaError;
       }
       
-      if (data) {
-        // Buscar perfis para os destinatários
-        const recipientIds = [...new Set(data.map(rec => rec.recipient_id))];
-        const { data: recipientsData } = await supabase
-          .from('profiles')
-          .select('id, name, email, profile_picture_url')
-          .in('id', recipientIds);
-          
-        const recipientsMap = (recipientsData || []).reduce((acc, user) => {
-          acc[user.id] = user;
-          return acc;
-        }, {});
-        
-        // Buscar detalhes dos livros
-        const bookIds = [...new Set(data.map(rec => rec.book_id))];
-        const { data: booksData } = await supabase
-          .from('books')
-          .select('id, title, author, cover_image_url, google_book_id')
-          .in('id', bookIds);
-          
-        const booksMap = (booksData || []).reduce((acc, book) => {
-          acc[book.id] = book;
-          return acc;
-        }, {});
-        
-        sentRecommendations.value = data.map(rec => {
-          const recipient = recipientsMap[rec.recipient_id] || {};
-          const book = booksMap[rec.book_id] || {};
-          
-          return {
-            id: rec.id,
-            bookId: rec.book_id,
-            recipientId: rec.recipient_id,
-            recipientName: recipient.name || 'Usuário',
-            recipientEmail: recipient.email,
-            recipientPhotoURL: recipient.profile_picture_url,
-            senderId: authStore.userId,
-            status: rec.status,
-            message: rec.message || '',
-            createdAt: new Date(rec.created_at),
-            acceptedAt: rec.accepted_at ? new Date(rec.accepted_at) : null,
-            rejectedAt: rec.rejected_at ? new Date(rec.rejected_at) : null,
-            book: {
-              id: book.id,
-              title: book.title,
-              authors: book.author,
-              coverUrl: book.cover_image_url,
-              isbn: book.google_book_id
-            }
-          };
-        });
-        
-        // Salvar no localStorage para próximos acessos
-        localStorage.setItem('sentRecommendations', 
-          JSON.stringify(sentRecommendations.value));
+      // Se não tiver dados, inicializa um array vazio em vez de mostrar erro
+      if (!data || data.length === 0) {
+        console.log('Nenhuma recomendação enviada encontrada');
+        sentRecommendations.value = [];
+        return;
       }
+      
+      // Buscar perfis para os destinatários
+      const recipientIds = [...new Set(data.map(rec => rec.recipient_id))];
+      const { data: recipientsData } = await supabase
+        .from('profiles')
+        .select('id, name, email, profile_picture_url')
+        .in('id', recipientIds);
+        
+      const recipientsMap = (recipientsData || []).reduce((acc, user) => {
+        acc[user.id] = user;
+        return acc;
+      }, {});
+      
+      // Buscar detalhes dos livros
+      const bookIds = [...new Set(data.map(rec => rec.book_id))];
+      const { data: booksData } = await supabase
+        .from('books')
+        .select('id, title, author, cover_image_url, google_book_id')
+        .in('id', bookIds);
+        
+      const booksMap = (booksData || []).reduce((acc, book) => {
+        acc[book.id] = book;
+        return acc;
+      }, {});
+      
+      sentRecommendations.value = data.map(rec => {
+        const recipient = recipientsMap[rec.recipient_id] || {};
+        const book = booksMap[rec.book_id] || {};
+        
+        return {
+          id: rec.id,
+          bookId: rec.book_id,
+          recipientId: rec.recipient_id,
+          recipientName: recipient.name || 'Usuário',
+          recipientEmail: recipient.email,
+          recipientPhotoURL: recipient.profile_picture_url,
+          senderId: authStore.userId,
+          status: rec.status,
+          message: rec.message || '',
+          createdAt: new Date(rec.created_at),
+          acceptedAt: rec.accepted_at ? new Date(rec.accepted_at) : null,
+          rejectedAt: rec.rejected_at ? new Date(rec.rejected_at) : null,
+          book: {
+            id: book.id,
+            title: book.title,
+            authors: book.author,
+            coverUrl: book.cover_image_url,
+            isbn: book.google_book_id
+          }
+        };
+      });
+      
+      // Salvar no localStorage para próximos acessos
+      localStorage.setItem('sentRecommendations', 
+        JSON.stringify(sentRecommendations.value));
     } catch (err) {
       console.error('Erro ao buscar recomendações enviadas:', err);
       error.value = 'Não foi possível carregar suas recomendações enviadas.';
@@ -708,20 +718,29 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         .from('recommendations')
         .select('id, book_id, status')
         .eq('id', recommendationId)
-        .eq('recipient_id', authStore.userId)
-        .single();
+        .eq('recipient_id', authStore.userId);
       
-      if (fetchError || !recommendation) {
-        throw fetchError || new Error('Recomendação não encontrada');
+      // Verificar se há erro ou se não encontrou recomendações
+      if (fetchError) {
+        console.error('Erro ao buscar recomendação:', fetchError);
+        throw fetchError;
       }
       
+      // Verificar se encontrou a recomendação
+      if (!recommendation || recommendation.length === 0) {
+        console.error('Recomendação não encontrada');
+        throw new Error('Recomendação não encontrada');
+      }
+      
+      const rec = recommendation[0]; // Pegar o primeiro item do array
+      
       // Verificar se a recomendação já foi aceita ou rejeitada
-      if (recommendation.status !== RecommendationStatus.PENDING) {
+      if (rec.status !== RecommendationStatus.PENDING) {
         throw new Error('Esta recomendação já foi processada');
       }
       
       // Buscar detalhes do livro
-      await bookshelfStore.fetchBookDetails(recommendation.book_id);
+      await bookshelfStore.fetchBookDetails(rec.book_id);
       
       // Atualizar o status da recomendação
       const now = new Date().toISOString();
@@ -793,15 +812,24 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         .from('recommendations')
         .select('status')
         .eq('id', recommendationId)
-        .eq('recipient_id', authStore.userId)
-        .single();
+        .eq('recipient_id', authStore.userId);
       
-      if (fetchError || !recommendation) {
-        throw fetchError || new Error('Recomendação não encontrada');
+      // Verificar se há erro ou se não encontrou recomendações
+      if (fetchError) {
+        console.error('Erro ao buscar recomendação:', fetchError);
+        throw fetchError;
       }
       
+      // Verificar se encontrou a recomendação
+      if (!recommendation || recommendation.length === 0) {
+        console.error('Recomendação não encontrada');
+        throw new Error('Recomendação não encontrada');
+      }
+      
+      const rec = recommendation[0]; // Pegar o primeiro item do array
+      
       // Verificar se a recomendação já foi aceita ou rejeitada
-      if (recommendation.status !== RecommendationStatus.PENDING) {
+      if (rec.status !== RecommendationStatus.PENDING) {
         throw new Error('Esta recomendação já foi processada');
       }
       
