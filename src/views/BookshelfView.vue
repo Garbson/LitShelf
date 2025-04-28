@@ -14,7 +14,7 @@
       </h1>
 
       <!-- Filtros e pesquisa -->
-      <v-row class="mb-6 px-md-15 d-flex justify-center">
+      <v-row class="mb-6  d-flex justify-center">
         <v-col cols="12" sm="6" md="4">
           <BaseTextField
             v-model="searchQuery"

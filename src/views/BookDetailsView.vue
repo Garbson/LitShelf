@@ -61,7 +61,7 @@
                   color="amber"
                   :readonly="true"
                   half-increments
-                  :size="57"
+                  :size="20"
                 ></v-rating>
                 <span class="ms-3 text-subtitle-1" v-if="bookRating > 0">{{ bookRating }} de 5 estrelas</span>
               </div>
@@ -73,6 +73,7 @@
                 <v-btn 
                   color="primary" 
                   variant="tonal" 
+                  class="mr-2"
                   prepend-icon="mdi-heart" 
                 >
                   Favoritar
@@ -80,6 +81,7 @@
                 <v-btn 
                   color="secondary" 
                   variant="tonal" 
+                  class="mr-2"
                   prepend-icon="mdi-share" 
                   @click="showRecommendDialog = true"
                 >
@@ -294,7 +296,7 @@
                       />
                       
                       <div class="d-flex gap-2 justify-end">
-                        <v-btn @click="saveQuoteEdit(getPaginationIndex(index))" color="success" size="small" variant="tonal">Salvar</v-btn>
+                        <v-btn @click="saveQuoteEdit(getPaginationIndex(index))" color="success" size="small" class="mr-2" variant="tonal">Salvar</v-btn>
                         <v-btn @click="cancelEdit" color="error" size="small" variant="tonal">Cancelar</v-btn>
                       </div>
                     </template>
@@ -319,6 +321,7 @@
                           size="small"
                           variant="tonal"
                           icon
+                          class="mr-2"
                         >
                           <v-icon>mdi-pencil</v-icon>
                         </v-btn>
@@ -1208,7 +1211,6 @@ const getPaginationIndex = (index: number) => {
 }
 
 .book-header {
-  background: linear-gradient(to right, rgba(var(--v-theme-surface-variant), 0.7), rgba(var(--v-theme-surface), 0.9));
   border-radius: 16px 16px 0 0;
 }
 
