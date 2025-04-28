@@ -41,7 +41,10 @@
                       :key="recommendation.id"
                       cols="12" sm="6" md="4"
                     >
-                      <v-card class="recommendation-card">
+                      <v-card 
+                        class="recommendation-card"
+                        @click="openBookDetailsDialog(recommendation)"
+                      >
                         <v-img
                           v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
@@ -56,7 +59,7 @@
                         <v-card-text>
                           <p class="text-body-2 mb-2">
                             <v-icon small class="mr-1">mdi-account</v-icon>
-                            De: {{ recommendation.fromUserName }}
+                            De: {{ recommendation.senderName }}
                           </p>
                           <p v-if="recommendation.message" class="recommendation-message">
                             "{{ recommendation.message }}"
@@ -95,7 +98,10 @@
                       :key="recommendation.id"
                       cols="12" sm="6" md="4"
                     >
-                      <v-card class="recommendation-card">
+                      <v-card 
+                        class="recommendation-card"
+                        @click="openBookDetailsDialog(recommendation)"
+                      >
                         <v-img
                           v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
@@ -110,14 +116,14 @@
                         <v-card-text>
                           <p class="text-body-2 mb-2">
                             <v-icon small class="mr-1">mdi-account</v-icon>
-                            De: {{ recommendation.fromUserName }}
+                            De: {{ recommendation.senderName }}
                           </p>
                           <p v-if="recommendation.message" class="recommendation-message">
                             "{{ recommendation.message }}"
                           </p>
                           <p class="text-caption text-grey">
                             <v-icon small class="mr-1">mdi-calendar</v-icon>
-                            Aceita em: {{ formatDate(recommendation.actionDate) }}
+                            Aceita em: {{ formatDate(recommendation.acceptedAt) }}
                           </p>
                         </v-card-text>
                         <v-card-actions>
@@ -146,7 +152,10 @@
                       :key="recommendation.id"
                       cols="12" sm="6" md="4"
                     >
-                      <v-card class="recommendation-card">
+                      <v-card 
+                        class="recommendation-card"
+                        @click="openBookDetailsDialog(recommendation)"
+                      >
                         <v-img
                           v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
@@ -161,14 +170,14 @@
                         <v-card-text>
                           <p class="text-body-2 mb-2">
                             <v-icon small class="mr-1">mdi-account</v-icon>
-                            De: {{ recommendation.fromUserName }}
+                            De: {{ recommendation.senderName }}
                           </p>
                           <p v-if="recommendation.message" class="recommendation-message">
                             "{{ recommendation.message }}"
                           </p>
                           <p class="text-caption text-grey">
                             <v-icon small class="mr-1">mdi-calendar</v-icon>
-                            Recusada em: {{ formatDate(recommendation.actionDate) }}
+                            Recusada em: {{ formatDate(recommendation.rejectedAt) }}
                           </p>
                         </v-card-text>
                         <v-card-actions>
@@ -212,7 +221,10 @@
                       :key="recommendation.id"
                       cols="12" sm="6" md="4"
                     >
-                      <v-card class="recommendation-card">
+                      <v-card 
+                        class="recommendation-card"
+                        @click="openBookDetailsDialog(recommendation)"
+                      >
                         <v-img
                           v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
@@ -263,7 +275,10 @@
                       :key="recommendation.id"
                       cols="12" sm="6" md="4"
                     >
-                      <v-card class="recommendation-card">
+                      <v-card 
+                        class="recommendation-card"
+                        @click="openBookDetailsDialog(recommendation)"
+                      >
                         <v-img
                           v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
@@ -285,7 +300,7 @@
                           </p>
                           <p class="text-caption text-success">
                             <v-icon small color="success" class="mr-1">mdi-check</v-icon>
-                            Aceita em: {{ formatDate(recommendation.actionDate) }}
+                            Aceita em: {{ formatDate(recommendation.acceptedAt) }}
                           </p>
                         </v-card-text>
                         <v-card-actions>
@@ -314,7 +329,10 @@
                       :key="recommendation.id"
                       cols="12" sm="6" md="4"
                     >
-                      <v-card class="recommendation-card">
+                      <v-card 
+                        class="recommendation-card"
+                        @click="openBookDetailsDialog(recommendation)"
+                      >
                         <v-img
                           v-if="recommendation.book.coverUrl || recommendation.book.cover_image_url"
                           :src="recommendation.book.coverUrl || recommendation.book.cover_image_url"
@@ -336,7 +354,7 @@
                           </p>
                           <p class="text-caption text-error">
                             <v-icon small color="error" class="mr-1">mdi-close</v-icon>
-                            Recusada em: {{ formatDate(recommendation.actionDate) }}
+                            Recusada em: {{ formatDate(recommendation.rejectedAt) }}
                           </p>
                         </v-card-text>
                         <v-card-actions>
@@ -378,23 +396,151 @@
         v-model="showRecommendationDialog"
         @recommendation-sent="onRecommendationSent"
       />
+
+      <!-- Dialog de detalhes do livro recomendado -->
+      <v-dialog v-model="showBookDetailsDialog" max-width="600">
+        <v-card v-if="selectedRecommendation">
+          <v-card-title class="text-h4 bg-primary text-white pa-4">
+            {{ selectedRecommendation.book.title }}
+          </v-card-title>
+          
+          <v-card-text class="pa-4">
+            <div class="d-flex flex-column flex-md-row">
+              <!-- Capa do livro -->
+              <div class="book-cover-container mr-md-4 mb-4 mb-md-0">
+                <v-img
+                  :src="selectedRecommendation.book.coverUrl || selectedRecommendation.book.cover_image_url || '/placeholder-book.png'"
+                  height="250"
+                  width="170"
+                  class="mx-auto"
+                  cover
+                ></v-img>
+              </div>
+              
+              <!-- Detalhes do livro -->
+              <div class="book-details flex-grow-1">
+                <h3 class="text-h6 mb-2">{{ selectedRecommendation.book.title }}</h3>
+                <p class="text-subtitle-1 mb-4">Por {{ selectedRecommendation.book.authors || selectedRecommendation.book.author }}</p>
+                
+                <div class="recommendation-info mb-4">
+                  <p class="text-body-2">
+                    <v-icon small class="mr-1" color="primary">mdi-account</v-icon>
+                    Recomendado por: <strong>{{ selectedRecommendation.senderName }}</strong>
+                  </p>
+                  
+                  <div v-if="selectedRecommendation.message" class="recommendation-message pa-3 mt-2 rounded-lg">
+                    <p class="text-body-2 font-italic">
+                      "{{ selectedRecommendation.message }}"
+                    </p>
+                  </div>
+                </div>
+                
+                <p v-if="selectedRecommendation.book.description" class="text-body-2 mb-4 book-description">
+                  {{ selectedRecommendation.book.description }}
+                </p>
+                <p v-else class="text-body-2 mb-4 text-grey">
+                  Nenhuma descrição disponível para este livro.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Status da recomendação -->
+            <v-chip 
+              class="mt-4" 
+              :color="getRecommendationStatusColor(selectedRecommendation.status)"
+              text-color="white"
+            >
+              {{ getRecommendationStatusLabel(selectedRecommendation.status) }}
+            </v-chip>
+          </v-card-text>
+          
+          <v-divider></v-divider>
+          
+          <v-card-actions class="pa-4">
+            <!-- Ações para recomendações pendentes -->
+            <template v-if="selectedRecommendation.status === 'pending'">
+              <v-btn
+                color="success"
+                variant="elevated"
+                prepend-icon="mdi-check"
+                class="mr-2"
+                @click="handleAcceptRecommendation(selectedRecommendation.id)"
+              >
+                Aceitar e Adicionar
+              </v-btn>
+              <v-btn
+                color="error"
+                variant="outlined"
+                prepend-icon="mdi-close"
+                @click="handleRejectRecommendation(selectedRecommendation.id)"
+              >
+                Recusar
+              </v-btn>
+            </template>
+            
+            <!-- Ações para recomendações aceitas -->
+            <template v-else-if="selectedRecommendation.status === 'accepted'">
+              <v-btn
+                color="primary"
+                variant="elevated"
+                prepend-icon="mdi-book-open-page-variant"
+                @click="viewBookDetails(selectedRecommendation.book.id)"
+              >
+                Ver na Biblioteca
+              </v-btn>
+            </template>
+            
+            <v-spacer></v-spacer>
+            
+            <v-btn
+              variant="text"
+              @click="showBookDetailsDialog = false"
+            >
+              Fechar
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- Snackbar para notificações -->
+      <v-snackbar v-model="showSnackbar" :color="snackbarColor" timeout="3000">
+        {{ snackbarText }}
+      </v-snackbar>
     </v-card>
   </div>
 </template>
 
 <script lang="ts" setup>
 import BookRecommendationDialog from '@/components/BookRecommendationDialog.vue';
+import { useBookshelfStore } from '@/stores/useBookshelfStore';
 import { useRecommendationStore } from '@/stores/useRecommendationStore';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const recommendationStore = useRecommendationStore();
+const bookshelfStore = useBookshelfStore();
 const router = useRouter();
 
+// Variáveis de estado
 const activeTab = ref('received');
 const receivedTab = ref('pending');
 const sentTab = ref('pending');
 const showRecommendationDialog = ref(false);
+const showBookDetailsDialog = ref(false);
+const selectedRecommendation = ref<any>(null);
+const isLoadingDetails = ref(false);
+
+// Snackbar para notificações
+const showSnackbar = ref(false);
+const snackbarText = ref("");
+const snackbarColor = ref("success");
+
+// Função para exibir notificações
+const showNotification = (text: string, color: string = 'success') => {
+  snackbarText.value = text;
+  snackbarColor.value = color;
+  showSnackbar.value = true;
+};
 
 // Carregar recomendações ao montar o componente
 onMounted(() => {
@@ -429,8 +575,82 @@ const onRecommendationSent = () => {
 };
 
 // Ver detalhes do livro
-const viewBookDetails = (bookId: string) => {
-  router.push(`/book/${bookId}`);
+const viewBookDetails = async (bookId) => {
+  // Redirecionar diretamente para a estante de livros
+  router.push('/bookshelf');
+  
+  // Mostrar notificação informando que o usuário foi direcionado para a estante
+  showNotification('Livro adicionado na sua estante', 'info');
+};
+
+// Abrir diálogo de detalhes do livro recomendado
+const openBookDetailsDialog = async (recommendation) => {
+  selectedRecommendation.value = recommendation;
+  showBookDetailsDialog.value = true;
+  
+  // Se o livro não tem descrição, buscar detalhes completos
+  if (!recommendation.book.description) {
+    isLoadingDetails.value = true;
+    try {
+      // Tenta buscar os detalhes do livro no Supabase primeiro
+      const bookDetails = await bookshelfStore.fetchBookDetails(recommendation.book.id);
+      
+      if (bookDetails && bookDetails.description) {
+        // Atualiza a descrição do livro na recomendação selecionada
+        selectedRecommendation.value = {
+          ...selectedRecommendation.value,
+          book: {
+            ...selectedRecommendation.value.book,
+            description: bookDetails.description
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Erro ao buscar detalhes do livro:', error);
+    } finally {
+      isLoadingDetails.value = false;
+    }
+  }
+};
+
+// Obter cor do status da recomendação
+const getRecommendationStatusColor = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return 'warning';
+    case 'accepted':
+      return 'success';
+    case 'rejected':
+      return 'error';
+    default:
+      return 'grey';
+  }
+};
+
+// Obter label do status da recomendação
+const getRecommendationStatusLabel = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return 'Pendente';
+    case 'accepted':
+      return 'Aceita';
+    case 'rejected':
+      return 'Recusada';
+    default:
+      return 'Desconhecido';
+  }
+};
+
+// Aceitar recomendação e adicionar à estante
+const handleAcceptRecommendation = (recommendationId: string) => {
+  recommendationStore.acceptRecommendation(recommendationId);
+  showBookDetailsDialog.value = false;
+};
+
+// Recusar recomendação
+const handleRejectRecommendation = (recommendationId: string) => {
+  recommendationStore.rejectRecommendation(recommendationId);
+  showBookDetailsDialog.value = false;
 };
 </script>
 
@@ -477,11 +697,30 @@ const viewBookDetails = (bookId: string) => {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   border-radius: 12px;
   overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.recommendation-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.05);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
 .recommendation-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+}
+
+.recommendation-card:hover::after {
+  opacity: 1;
 }
 
 .recommendation-cover {
@@ -512,5 +751,20 @@ const viewBookDetails = (bookId: string) => {
   bottom: 30px;
   right: 30px;
   z-index: 10;
+}
+
+.book-cover-container {
+  width: 170px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.book-description {
+  max-height: 150px;
+  overflow-y: auto;
+  text-align: justify;
+  padding-right: 10px;
+  line-height: 1.6;
 }
 </style>

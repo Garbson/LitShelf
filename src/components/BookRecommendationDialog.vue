@@ -192,14 +192,6 @@ const sendRecommendations = async () => {
   error.value = '';
   
   try {
-    // Preparar o objeto de livro com os campos necessários
-    const bookToRecommend = {
-      id: props.book.id,
-      title: props.book.title,
-      author: props.book.author,
-      coverImage: props.book.coverImage || props.book.cover_image_url
-    };
-    
     // Usar o store para enviar recomendações
     const result = await recommendationStore.sendRecommendation(
       props.book.id,
