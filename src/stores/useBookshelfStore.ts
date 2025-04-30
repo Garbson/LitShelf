@@ -1,35 +1,35 @@
 // src/stores/useBookshelfStore.ts
-import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
-import { supabase } from '../supabase';
-import { useAuthStore } from './useAuthStore';
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+import { supabase } from '../supabase'
+import { useAuthStore } from './useAuthStore'
 
 // Enumeração para Status de Leitura
 export enum ReadingStatus {
   WISHLIST = 0, // Quero ler
   COMPLETED = 1, // Já li
-  READING = 2    // Estou lendo
+  READING = 2, // Estou lendo
 }
 
 // Interface para o Livro
 interface Book {
-  id: string;
-  user_id: string;
-  title: string;
-  author: string;
-  cover_image_url?: string;
-  description?: string;
-  page_count?: number;
-  genre?: string;
-  status?: ReadingStatus | number;
-  rating?: number;
-  current_page?: number;
-  started_reading_at?: string; // ISO date string
-  finished_reading_at?: string; // ISO date string
-  notes?: string;
-  added_at?: string;
-  updated_at?: string;
-  google_book_id?: string;
+  id: string
+  user_id: string
+  title: string
+  author: string
+  cover_image_url?: string
+  description?: string
+  page_count?: number
+  genre?: string
+  status?: ReadingStatus | number
+  rating?: number
+  current_page?: number
+  started_reading_at?: string // ISO date string
+  finished_reading_at?: string // ISO date string
+  notes?: string
+  added_at?: string
+  updated_at?: string
+  google_book_id?: string
 }
 
 export const useBookshelfStore = defineStore('bookshelf', () => {
@@ -42,25 +42,28 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const authStore = useAuthStore()
   const viewingFriendId = ref<string | null>(null) // ID do amigo cuja estante está sendo visualizada
 
+  // Cache para requisições da Google Books API - evitar chamadas repetidas
+  const googleBooksCache = new Map()
+
   // Computed
   const isAuthenticated = computed(() => authStore.isAuthenticated)
   const userId = computed(() => authStore.userId)
-  
+
   // Livros exibidos atualmente (meus ou do amigo)
   const currentBooks = computed(() => {
-    return viewingFriendId.value ? friendBooks.value : books.value;
+    return viewingFriendId.value ? friendBooks.value : books.value
   })
-  
+
   // Filtragem de livros por status
   const booksByStatus = computed(() => {
     const result = {
       [ReadingStatus.WISHLIST]: [] as Book[],
       [ReadingStatus.READING]: [] as Book[],
       [ReadingStatus.COMPLETED]: [] as Book[],
-      all: [] as Book[]
+      all: [] as Book[],
     }
-    
-    currentBooks.value.forEach(book => {
+
+    currentBooks.value.forEach((book) => {
       if (typeof book.status === 'number') {
         result[book.status as ReadingStatus].push(book)
       } else {
@@ -68,20 +71,33 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         result[ReadingStatus.WISHLIST].push(book)
       }
     })
-    
+
     result.all = currentBooks.value
     return result
   })
 
   // Método para definir que estamos visualizando a estante de um amigo
   const setViewingFriend = (friendId: string | null) => {
-    console.log(`Definindo visualização de amigo: ${friendId || 'nenhum'}`);
-    viewingFriendId.value = friendId;
-    
+    console.log(`Definindo visualização de amigo: ${friendId || 'nenhum'}`)
+    viewingFriendId.value = friendId
+
     // Se não estamos mais visualizando a estante de um amigo, limpar os livros dele
     if (!friendId) {
-      friendBooks.value = [];
+      friendBooks.value = []
     }
+  }
+
+  // Garantir que o status dos livros seja sempre um número
+  const ensureBookStatusIsNumber = (book) => {
+    if (book && (book.status === undefined || book.status === null)) {
+      console.log(`Livro sem status definido: ${book.title}. Definindo como 0 (Wishlist)`)
+      book.status = 0
+    } else if (book && typeof book.status !== 'number') {
+      // Se o status não for um número, converter para número
+      console.log(`Convertendo status do livro ${book.title} de ${typeof book.status} para number`)
+      book.status = Number(book.status)
+    }
+    return book
   }
 
   // Fetch Books for the Logged User
@@ -90,19 +106,19 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       console.warn('Tentativa de buscar livros sem usuário autenticado.')
       return
     }
-    
+
     isLoading.value = true
     error.value = null
-    
+
     try {
       console.log('Buscando livros para usuário:', userId.value)
-      
+
       // Consulta ao Supabase para buscar todos os livros do usuário
       const { data, error: supabaseError } = await supabase
         .from('books')
         .select('*')
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) {
         console.error('Erro ao buscar livros do Supabase:', supabaseError)
         throw supabaseError
@@ -110,33 +126,36 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
 
       if (data && data.length > 0) {
         console.log(`Encontrados ${data.length} livros`)
-        
+
         // Fetch additional data for each book if needed
         const booksWithDetails = await Promise.all(
           data.map(async (book) => {
             // Mapear datas ISO para formato brasileiro (DD/MM/YYYY)
             const formatDate = (dateStr: string | null): string | null => {
-              if (!dateStr) return null;
-              const date = new Date(dateStr);
-              return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+              if (!dateStr) return null
+              const date = new Date(dateStr)
+              return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`
             }
-            
+
             // Convertendo datas para o formato brasileiro para exibição
             const bookWithDates = {
               ...book,
               dataInicioLeitura: formatDate(book.started_reading_at),
               dataFinalLeitura: formatDate(book.finished_reading_at),
             }
-            
+
             // Adicionando campo de compatibilidade para a imagem
             if (book.cover_image_url) {
-              bookWithDates.coverImage = book.cover_image_url;
+              bookWithDates.coverImage = book.cover_image_url
             }
-            
+
+            // Garantir que o status seja um número
+            ensureBookStatusIsNumber(bookWithDates)
+
             if (!book.description || !book.page_count || !book.genre) {
               console.log(`Buscando detalhes adicionais para o livro: ${book.title}`)
               const bookDetails = await fetchBookDetailsFromGoogle(book.title, book.author)
-              
+
               // Atualizar o livro no Supabase com os detalhes obtidos
               if (bookDetails.description || bookDetails.page_count || bookDetails.genre) {
                 await supabase
@@ -144,16 +163,23 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
                   .update({
                     description: bookDetails.description,
                     page_count: bookDetails.page_count,
-                    genre: bookDetails.genre
+                    genre: bookDetails.genre,
                   })
                   .eq('id', book.id)
               }
-              
-              return { ...bookWithDates, ...bookDetails }
+
+              return ensureBookStatusIsNumber({ ...bookWithDates, ...bookDetails })
             }
-            return bookWithDates
-          })
+            return ensureBookStatusIsNumber(bookWithDates)
+          }),
         )
+
+        // Verifica e loga o status de cada livro para ajudar no diagnóstico
+        booksWithDetails.forEach((book) => {
+          console.log(
+            `Livro carregado: ${book.title}, Status: ${book.status}, Tipo: ${typeof book.status}`,
+          )
+        })
 
         books.value = booksWithDetails
         console.log('Todos os livros carregados com sucesso')
@@ -175,21 +201,21 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       console.warn('Tentativa de buscar livros sem usuário autenticado.')
       return
     }
-    
+
     isLoading.value = true
     error.value = null
-    setViewingFriend(friendId);
-    
+    setViewingFriend(friendId)
+
     try {
       console.log('Buscando livros do amigo com ID:', friendId)
-      
+
       // Usar a view friend_books_view
       const { data, error: supabaseError } = await supabase
         .from('friend_books_view')
         .select('*')
         .eq('user_id', friendId)
         .or(`user_id_1.eq.${userId.value},user_id_2.eq.${userId.value}`)
-      
+
       if (supabaseError) {
         console.error('Erro ao buscar livros do amigo:', supabaseError)
         throw supabaseError
@@ -197,23 +223,23 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
 
       if (data && data.length > 0) {
         console.log(`Encontrados ${data.length} livros do amigo`)
-        
+
         // Processar detalhes dos livros do amigo
-        const friendBooksWithDetails = data.map(book => {
+        const friendBooksWithDetails = data.map((book) => {
           // Formatação de data para exibição em formato brasileiro
           const formatDate = (dateStr: string | null): string | null => {
-            if (!dateStr) return null;
-            const date = new Date(dateStr);
-            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-          };
-          
+            if (!dateStr) return null
+            const date = new Date(dateStr)
+            return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`
+          }
+
           return {
             ...book,
             coverImage: book.cover_image_url,
             dataInicioLeitura: formatDate(book.started_reading_at),
             dataFinalLeitura: formatDate(book.finished_reading_at),
-          };
-        });
+          }
+        })
 
         friendBooks.value = friendBooksWithDetails
         console.log('Livros do amigo carregados com sucesso')
@@ -233,13 +259,13 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const fetchFriendBookDetails = async (bookId: string, friendId: string) => {
     error.value = null
     if (!userId.value) return null
-    
+
     try {
       console.log(`Buscando detalhes do livro ${bookId} do amigo ${friendId}`)
-      
+
       // Marcar que estamos vendo um livro do amigo
-      setViewingFriend(friendId);
-      
+      setViewingFriend(friendId)
+
       // Buscar o livro na view específica de amigos
       const { data: book, error: bookError } = await supabase
         .from('friend_books_view')
@@ -247,12 +273,12 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .eq('id', bookId)
         .eq('user_id', friendId)
         .single()
-      
+
       if (bookError) {
         console.error('Erro ao buscar detalhes do livro do amigo:', bookError)
         throw bookError
       }
-      
+
       if (book) {
         // Buscar as citações/frases favoritas do livro do amigo
         const { data: quotes, error: quotesError } = await supabase
@@ -260,30 +286,30 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           .select('*')
           .eq('book_id', bookId)
           .eq('user_id', friendId)
-        
+
         if (quotesError) {
           console.warn('Erro ao buscar citações do livro do amigo:', quotesError)
           // Continuamos mesmo se não conseguirmos as citações
         }
-        
+
         // Preparar arrays de citações e páginas
         const quoteTexts: string[] = []
         const quotePages: (number | null)[] = []
-        
+
         if (quotes && Array.isArray(quotes)) {
-          quotes.forEach(quote => {
+          quotes.forEach((quote) => {
             quoteTexts.push(quote.text)
             quotePages.push(quote.page)
           })
         }
-        
+
         // Formatar datas para exibição
         const formatDate = (dateStr: string | null): string | null => {
-          if (!dateStr) return null;
-          const date = new Date(dateStr);
-          return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+          if (!dateStr) return null
+          const date = new Date(dateStr)
+          return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`
         }
-        
+
         // Montar o objeto do livro com os detalhes necessários
         const mappedBook = {
           ...book,
@@ -294,10 +320,10 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           quotePages: quotePages,
           quotesData: quotes || [],
         }
-        
+
         // Definir como livro selecionado
         selectedBook.value = mappedBook
-        
+
         return selectedBook.value
       } else {
         error.value = 'Livro do amigo não encontrado.'
@@ -315,7 +341,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const fetchBookDetails = async (bookId: string) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Buscar o livro no Supabase
       const { data: book, error: bookError } = await supabase
@@ -324,51 +350,48 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .eq('id', bookId)
         .eq('user_id', userId.value)
         .single()
-      
+
       if (bookError) throw bookError
-      
+
       if (book) {
         // Buscar detalhes adicionais do Google se necessário
         let bookDetails = {}
         if (!book.description || !book.page_count || !book.genre) {
           bookDetails = await fetchBookDetailsFromGoogle(book.title, book.author)
-          
+
           // Atualizar o livro no Supabase com os detalhes obtidos
           if (Object.keys(bookDetails).length > 0) {
-            await supabase
-              .from('books')
-              .update(bookDetails)
-              .eq('id', book.id)
+            await supabase.from('books').update(bookDetails).eq('id', book.id)
           }
         }
-        
+
         // Buscar frases/citações relacionadas a este livro
         const { data: quotes, error: quotesError } = await supabase
           .from('quotes')
           .select('*')
           .eq('book_id', bookId)
           .eq('user_id', userId.value)
-        
+
         if (quotesError) throw quotesError
-        
+
         // Preparar arrays de citações e páginas
         const quoteTexts: string[] = []
         const quotePages: (number | null)[] = []
-        
+
         if (quotes) {
-          quotes.forEach(quote => {
+          quotes.forEach((quote) => {
             quoteTexts.push(quote.text)
             quotePages.push(quote.page)
           })
         }
-        
+
         // Converter datas ISO para formato brasileiro
         const formatDate = (dateStr: string | null): string | null => {
-          if (!dateStr) return null;
-          const date = new Date(dateStr);
-          return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+          if (!dateStr) return null
+          const date = new Date(dateStr)
+          return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`
         }
-        
+
         // Garantir que temos as propriedades necessárias
         const mappedBook = {
           ...book,
@@ -377,22 +400,19 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           quotes: quoteTexts,
           quotePages: quotePages,
           quotesData: quotes || [], // Manter os dados completos para referência
-          
+
           // Mapear datas ISO para formato brasileiro (DD/MM/YYYY)
           dataInicioLeitura: formatDate(book.started_reading_at),
           dataFinalLeitura: formatDate(book.finished_reading_at),
         }
-        
+
         // Adicionar a seleção atual
         selectedBook.value = mappedBook
-        
+
         // Garantir que o status está definido
         if (selectedBook.value.status === undefined || selectedBook.value.status === null) {
           selectedBook.value.status = 0 // Definir como "Quero Ler" como padrão
-          await supabase
-            .from('books')
-            .update({ status: 0 })
-            .eq('id', bookId)
+          await supabase.from('books').update({ status: 0 }).eq('id', bookId)
         }
 
         return selectedBook.value
@@ -411,28 +431,28 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   // Add a Book
   const addBook = async (bookData: any) => {
     error.value = null
-    
+
     try {
       // Verificar autenticação
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession()
       if (!sessionData.session) {
-        error.value = 'Sessão expirada. Faça login novamente.';
-        console.error('Sem sessão ativa no Supabase');
-        throw new Error('Sem sessão ativa');
+        error.value = 'Sessão expirada. Faça login novamente.'
+        console.error('Sem sessão ativa no Supabase')
+        throw new Error('Sem sessão ativa')
       }
-      
-      const currentUser = sessionData.session.user;
+
+      const currentUser = sessionData.session.user
       if (!currentUser) {
-        error.value = 'Usuário não encontrado na sessão atual.';
-        console.error('Usuário não encontrado na sessão');
-        throw new Error('Usuário não encontrado');
+        error.value = 'Usuário não encontrado na sessão atual.'
+        console.error('Usuário não encontrado na sessão')
+        throw new Error('Usuário não encontrado')
       }
-      
-      console.log('Usuário autenticado:', currentUser.id);
-      
+
+      console.log('Usuário autenticado:', currentUser.id)
+
       // Buscar detalhes adicionais se necessário
-      const bookDetails = await fetchBookDetailsFromGoogle(bookData.title, bookData.author);
-      
+      const bookDetails = await fetchBookDetailsFromGoogle(bookData.title, bookData.author)
+
       // Preparar o objeto com todos os dados do livro
       const bookToSave = {
         user_id: currentUser.id, // Usar ID diretamente da sessão
@@ -445,43 +465,47 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         status: Number(bookData.status || 0),
         google_book_id: bookData.googleBookId || bookData.google_book_id,
         added_at: new Date().toISOString(),
-        started_reading_at: bookData.dataInicioLeitura ? new Date(bookData.dataInicioLeitura.split('/').reverse().join('-')).toISOString() : null,
-        finished_reading_at: bookData.dataFinalLeitura ? new Date(bookData.dataFinalLeitura.split('/').reverse().join('-')).toISOString() : null
+        started_reading_at: bookData.dataInicioLeitura
+          ? new Date(bookData.dataInicioLeitura.split('/').reverse().join('-')).toISOString()
+          : null,
+        finished_reading_at: bookData.dataFinalLeitura
+          ? new Date(bookData.dataFinalLeitura.split('/').reverse().join('-')).toISOString()
+          : null,
       }
-      
+
       // Log para depuração
       console.log('Adicionando livro:', {
         título: bookToSave.title,
         id_usuário: bookToSave.user_id,
-        status: bookToSave.status
-      });
-      
+        status: bookToSave.status,
+      })
+
       // Inserir no Supabase
       const { data, error: supabaseError } = await supabase
         .from('books')
         .insert([bookToSave])
-        .select();
-      
+        .select()
+
       if (supabaseError) {
         console.error('Erro do Supabase ao adicionar livro:', {
           código: supabaseError.code,
           mensagem: supabaseError.message,
-          detalhes: supabaseError.details
-        });
-        throw supabaseError;
+          detalhes: supabaseError.details,
+        })
+        throw supabaseError
       }
-      
-      console.log('Livro adicionado com sucesso:', data?.[0]?.id);
-      
+
+      console.log('Livro adicionado com sucesso:', data?.[0]?.id)
+
       if (data && data[0]) {
         // Adicionar o livro à lista local
-        books.value.push(data[0]);
-        return data[0].id;
+        books.value.push(data[0])
+        return data[0].id
       }
     } catch (err: any) {
-      console.error('Erro ao adicionar livro:', err);
-      error.value = `Erro ao adicionar livro: ${err.message || JSON.stringify(err)}`;
-      throw err;
+      console.error('Erro ao adicionar livro:', err)
+      error.value = `Erro ao adicionar livro: ${err.message || JSON.stringify(err)}`
+      throw err
     }
   }
 
@@ -489,69 +513,71 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const addPhase = async (bookId: string, phaseData: { text: string; page: number | null }) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
-      console.log("Inserindo citação para o livro:", bookId);
-      console.log("Usuário ID:", userId.value);
-      console.log("Dados da citação:", phaseData);
-      
+      console.log('Inserindo citação para o livro:', bookId)
+      console.log('Usuário ID:', userId.value)
+      console.log('Dados da citação:', phaseData)
+
       // Verificar se já existe uma citação igual para evitar duplicatas
       const { data: existingQuotes, error: checkError } = await supabase
         .from('quotes')
         .select('*')
         .eq('book_id', bookId)
         .eq('user_id', userId.value)
-        .eq('text', phaseData.text);
-      
+        .eq('text', phaseData.text)
+
       if (checkError) {
-        console.error("Erro ao verificar citações existentes:", checkError);
+        console.error('Erro ao verificar citações existentes:', checkError)
       } else if (existingQuotes && existingQuotes.length > 0) {
-        console.log("Citação já existe, não será adicionada novamente:", existingQuotes[0]);
-        return existingQuotes[0].id;
+        console.log('Citação já existe, não será adicionada novamente:', existingQuotes[0])
+        return existingQuotes[0].id
       }
-      
+
       // Inserir a citação no Supabase apenas se não existir
       const { data, error: supabaseError } = await supabase
         .from('quotes')
-        .insert([{
-          user_id: userId.value,
-          book_id: bookId,
-          text: phaseData.text,
-          page: phaseData.page,
-          added_at: new Date().toISOString()
-        }])
-        .select();
-      
+        .insert([
+          {
+            user_id: userId.value,
+            book_id: bookId,
+            text: phaseData.text,
+            page: phaseData.page,
+            added_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+
       if (supabaseError) {
-        console.error("Erro completo ao inserir citação:", supabaseError);
-        throw supabaseError;
+        console.error('Erro completo ao inserir citação:', supabaseError)
+        throw supabaseError
       }
-      
-      console.log("Citação adicionada com sucesso:", data);
-      
+
+      console.log('Citação adicionada com sucesso:', data)
+
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value && selectedBook.value.id === bookId) {
-        if (!selectedBook.value.quotes) selectedBook.value.quotes = [];
-        if (!selectedBook.value.quotePages) selectedBook.value.quotePages = [];
-        if (!selectedBook.value.quotesData) selectedBook.value.quotesData = [];
-        
+        if (!selectedBook.value.quotes) selectedBook.value.quotes = []
+        if (!selectedBook.value.quotePages) selectedBook.value.quotePages = []
+        if (!selectedBook.value.quotesData) selectedBook.value.quotesData = []
+
         // Evitar duplicação no front-end - verificar se a frase já existe nos arrays locais
-        const existingIndex = selectedBook.value.quotes.findIndex(q => q === phaseData.text);
+        const existingIndex = selectedBook.value.quotes.findIndex((q) => q === phaseData.text)
         if (existingIndex === -1) {
-          selectedBook.value.quotes.push(phaseData.text);
-          selectedBook.value.quotePages.push(phaseData.page);
-          
+          selectedBook.value.quotes.push(phaseData.text)
+          selectedBook.value.quotePages.push(phaseData.page)
+
           if (data && data[0]) {
-            selectedBook.value.quotesData.push(data[0]);
+            selectedBook.value.quotesData.push(data[0])
           }
         }
       }
-      
-      return data ? data[0].id : null;
+
+      return data ? data[0].id : null
     } catch (err: any) {
-      console.error('Erro ao adicionar frase:', err);
-      error.value = 'Erro ao adicionar frase.';
-      throw err;
+      console.error('Erro ao adicionar frase:', err)
+      error.value = 'Erro ao adicionar frase.'
+      throw err
     }
   }
 
@@ -559,30 +585,30 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const editPhase = async (phaseId: string, phaseData: { text: string; page: number | null }) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Atualizar a citação no Supabase
       const { data, error: supabaseError } = await supabase
         .from('quotes')
         .update({
           text: phaseData.text,
-          page: phaseData.page
+          page: phaseData.page,
         })
         .eq('id', phaseId)
         .eq('user_id', userId.value)
         .select()
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Atualizar o livro selecionado se necessário
       if (selectedBook.value && data && data[0]) {
         const bookId = data[0].book_id
         if (selectedBook.value.id === bookId) {
           // Encontrar o índice da citação nos arrays
           const quoteIndex = selectedBook.value.quotesData.findIndex(
-            (quote: any) => quote.id === phaseId
+            (quote: any) => quote.id === phaseId,
           )
-          
+
           if (quoteIndex !== -1) {
             // Atualizar os arrays
             selectedBook.value.quotes[quoteIndex] = phaseData.text
@@ -601,7 +627,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const removePhase = async (phaseId: string) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Buscar a citação primeiro para ter os detalhes
       const { data: quoteData } = await supabase
@@ -609,23 +635,23 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .select('*')
         .eq('id', phaseId)
         .single()
-      
+
       // Excluir a citação do Supabase
       const { error: supabaseError } = await supabase
         .from('quotes')
         .delete()
         .eq('id', phaseId)
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value && quoteData && selectedBook.value.id === quoteData.book_id) {
         // Encontrar o índice da citação nos arrays
         const quoteIndex = selectedBook.value.quotesData.findIndex(
-          (quote: any) => quote.id === phaseId
+          (quote: any) => quote.id === phaseId,
         )
-        
+
         if (quoteIndex !== -1) {
           // Remover dos arrays
           selectedBook.value.quotes.splice(quoteIndex, 1)
@@ -643,7 +669,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const deleteBook = async (bookId: string) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Excluir o livro do Supabase
       const { error: supabaseError } = await supabase
@@ -651,12 +677,12 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .delete()
         .eq('id', bookId)
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Remover da lista local
       books.value = books.value.filter((book) => book.id !== bookId)
-      
+
       // Limpar o livro selecionado se for o mesmo
       if (selectedBook.value && selectedBook.value.id === bookId) {
         selectedBook.value = null
@@ -670,26 +696,41 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   // Fetch Book Details from Google Books API
   const fetchBookDetailsFromGoogle = async (title: string, author: string) => {
     try {
+      // Criar uma chave de cache única para esta combinação de título e autor
+      const cacheKey = `${title}|${author}`.toLowerCase()
+
+      // Verificar se já temos esta busca em cache
+      if (googleBooksCache.has(cacheKey)) {
+        console.log(`[Google Books] Usando dados em cache para: ${title} - ${author}`)
+        return googleBooksCache.get(cacheKey)
+      }
+
+      console.log(`[Google Books] Buscando detalhes para: ${title} - ${author}`)
+
+      // Se não está em cache, fazer a requisição à API
       const response = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=intitle:${title}+inauthor:${author}`
+        `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author)}`,
       )
+
       const data = await response.json()
+      const result = {
+        description: '',
+        page_count: 0,
+        genre: '',
+      }
+
       if (data.items && data.items.length > 0) {
         const bookInfo = data.items[0].volumeInfo
-        return {
-          description: bookInfo.description || '',
-          page_count: bookInfo.pageCount || 0,
-          genre: bookInfo.categories ? bookInfo.categories[0] : '',
-        }
-      } else {
-        return {
-          description: '',
-          page_count: 0,
-          genre: '',
-        }
+        result.description = bookInfo.description || ''
+        result.page_count = bookInfo.pageCount || 0
+        result.genre = bookInfo.categories ? bookInfo.categories[0] : ''
       }
+
+      // Salvar no cache para futuras consultas
+      googleBooksCache.set(cacheKey, result)
+      return result
     } catch (err: any) {
-      console.error('Erro ao buscar detalhes do livro na API do Google:', err)
+      console.error('[Google Books] Erro ao buscar detalhes:', err)
       return {
         description: '',
         page_count: 0,
@@ -702,34 +743,34 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const updateReadingStatus = async (bookId: string, status: ReadingStatus) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       const updateData: any = { status }
-      
+
       // Adicionar datas de início/conclusão conforme o status
-      const book = books.value.find(b => b.id === bookId)
-      if (status === ReadingStatus.READING && (!book?.started_reading_at)) {
+      const book = books.value.find((b) => b.id === bookId)
+      if (status === ReadingStatus.READING && !book?.started_reading_at) {
         updateData.started_reading_at = new Date().toISOString()
       }
-      if (status === ReadingStatus.COMPLETED && (!book?.finished_reading_at)) {
+      if (status === ReadingStatus.COMPLETED && !book?.finished_reading_at) {
         updateData.finished_reading_at = new Date().toISOString()
       }
-      
+
       // Atualizar no Supabase
       const { error: supabaseError } = await supabase
         .from('books')
         .update(updateData)
         .eq('id', bookId)
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Atualizar estado local
-      const bookIndex = books.value.findIndex(book => book.id === bookId)
+      const bookIndex = books.value.findIndex((book) => book.id === bookId)
       if (bookIndex !== -1) {
         books.value[bookIndex] = { ...books.value[bookIndex], ...updateData }
       }
-      
+
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value?.id === bookId) {
         selectedBook.value = { ...selectedBook.value, ...updateData }
@@ -739,12 +780,12 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       error.value = 'Erro ao atualizar status do livro.'
     }
   }
-  
+
   // Update Book Rating
   const updateBookRating = async (bookId: string, rating: number) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Atualizar no Supabase
       const { error: supabaseError } = await supabase
@@ -752,15 +793,15 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .update({ rating })
         .eq('id', bookId)
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Atualizar estado local
-      const bookIndex = books.value.findIndex(book => book.id === bookId)
+      const bookIndex = books.value.findIndex((book) => book.id === bookId)
       if (bookIndex !== -1) {
         books.value[bookIndex] = { ...books.value[bookIndex], rating }
       }
-      
+
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value?.id === bookId) {
         selectedBook.value = { ...selectedBook.value, rating }
@@ -770,12 +811,12 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       error.value = 'Erro ao atualizar avaliação do livro.'
     }
   }
-  
+
   // Update Reading Progress
   const updateReadingProgress = async (bookId: string, current_page: number) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Atualizar no Supabase
       const { error: supabaseError } = await supabase
@@ -783,22 +824,22 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .update({ current_page })
         .eq('id', bookId)
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Atualizar estado local
-      const bookIndex = books.value.findIndex(book => book.id === bookId)
+      const bookIndex = books.value.findIndex((book) => book.id === bookId)
       if (bookIndex !== -1) {
         books.value[bookIndex] = { ...books.value[bookIndex], current_page }
       }
-      
+
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value?.id === bookId) {
         selectedBook.value = { ...selectedBook.value, current_page }
       }
-      
+
       // Se a página atual for igual ao total de páginas, marcar como concluído automaticamente
-      const book = books.value.find(book => book.id === bookId)
+      const book = books.value.find((book) => book.id === bookId)
       if (book && book.page_count && current_page === book.page_count) {
         await updateReadingStatus(bookId, ReadingStatus.COMPLETED)
       }
@@ -807,12 +848,12 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       error.value = 'Erro ao atualizar progresso de leitura.'
     }
   }
-  
+
   // Update Book Notes
   const updateBookNotes = async (bookId: string, notes: string) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Atualizar no Supabase
       const { error: supabaseError } = await supabase
@@ -820,15 +861,15 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .update({ notes })
         .eq('id', bookId)
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Atualizar estado local
-      const bookIndex = books.value.findIndex(book => book.id === bookId)
+      const bookIndex = books.value.findIndex((book) => book.id === bookId)
       if (bookIndex !== -1) {
         books.value[bookIndex] = { ...books.value[bookIndex], notes }
       }
-      
+
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value?.id === bookId) {
         selectedBook.value = { ...selectedBook.value, notes }
@@ -843,7 +884,7 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const updateBook = async (bookId: string, updateData: any) => {
     error.value = null
     if (!userId.value) return
-    
+
     try {
       // Atualizar no Supabase
       const { error: supabaseError } = await supabase
@@ -851,15 +892,15 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         .update(updateData)
         .eq('id', bookId)
         .eq('user_id', userId.value)
-      
+
       if (supabaseError) throw supabaseError
-      
+
       // Atualizar estado local
-      const bookIndex = books.value.findIndex(book => book.id === bookId)
+      const bookIndex = books.value.findIndex((book) => book.id === bookId)
       if (bookIndex !== -1) {
         books.value[bookIndex] = { ...books.value[bookIndex], ...updateData }
       }
-      
+
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value?.id === bookId) {
         selectedBook.value = { ...selectedBook.value, ...updateData }
@@ -875,20 +916,20 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   const fetchFriendQuotes = async (friendId: string) => {
     error.value = null
     if (!userId.value) return []
-    
+
     try {
       console.log(`Buscando citações favoritas do amigo ${friendId}`)
-      
+
       // Buscar as citações na view específica de citações de amigos
       const { data, error: quotesError } = await supabase
         .from('friend_quotes_view')
         .select('*')
         .eq('user_id', friendId)
         .order('added_at', { ascending: false })
-      
+
       if (quotesError) {
         console.error('Erro ao buscar citações do amigo:', quotesError)
-        
+
         // Caso a view não exista ainda, tentar buscar diretamente da tabela quotes
         // Isso é um fallback para o caso da view ainda não ter sido criada
         console.log('Tentando buscar diretamente da tabela quotes...')
@@ -897,15 +938,15 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           .select('*, books(title, author, cover_image_url)')
           .eq('user_id', friendId)
           .order('added_at', { ascending: false })
-        
+
         if (fallbackError) {
           console.error('Erro ao buscar citações diretamente:', fallbackError)
           return []
         }
-        
+
         return fallbackData || []
       }
-      
+
       return data || []
     } catch (err: any) {
       console.error('Erro ao buscar citações do amigo:', err)
@@ -939,6 +980,8 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     updateReadingProgress,
     updateBookNotes,
     updateBook,
-    get user() { return userId.value ? { id: userId.value } : null }
+    get user() {
+      return userId.value ? { id: userId.value } : null
+    },
   }
 })

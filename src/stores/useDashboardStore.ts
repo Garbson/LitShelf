@@ -1,351 +1,427 @@
 // src/stores/useDashboardStore.ts
-import { supabase } from "@/supabase";
-import { defineStore } from "pinia";
-import { computed, ref } from "vue";
-import { useAuthStore } from "./useAuthStore";
-import { useBookshelfStore } from "./useBookshelfStore";
+import { supabase } from '@/supabase'
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+import { useAuthStore } from './useAuthStore'
+import { useBookshelfStore } from './useBookshelfStore'
 
 interface ReadingGoal {
-  year: number;
-  target: number;
+  year: number
+  target: number
 }
 
-export const useDashboardStore = defineStore("dashboard", () => {
-  const bookshelfStore = useBookshelfStore();
-  const authStore = useAuthStore();
-  const books = computed(() => bookshelfStore.books);
-  
+export const useDashboardStore = defineStore('dashboard', () => {
+  const bookshelfStore = useBookshelfStore()
+  const authStore = useAuthStore()
+
+  // Importante: Usar sempre os livros diretamente da bookshelfStore,
+  // para garantir que estamos sempre trabalhando com os dados mais recentes
+  const books = computed(() => bookshelfStore.books)
+
   // Estado para contagens
-  const quotesCount = ref(0); // Contador para frases favoritas
-  
+  const quotesCount = ref(0) // Contador para frases favoritas
+
   // Estado para meta de leitura
-  const readingGoal = ref<ReadingGoal>({ year: new Date().getFullYear(), target: 20 });
-  const readingGoalLoaded = ref(false);
-  
+  const readingGoal = ref<ReadingGoal>({ year: new Date().getFullYear(), target: 20 })
+  const readingGoalLoaded = ref(false)
+
+  // Flag para controlar se estamos no meio de um carregamento
+  const isLoading = ref(false)
+  // Armazena o último ID de carregamento para controlar sobreposição
+  const lastLoadId = ref(0)
+
   // Livro atual sendo lido
   const currentlyReading = computed(() => {
-    return books.value.find((book) => Number(book.status) === 2);
-  });
-  
-  // Progresso fictício de leitura (em uma aplicação real, você armazenaria isso em cada livro)
+    return books.value.find((book) => isReading(book))
+  })
+
+  // Progresso de leitura do livro atual
   const readingProgress = computed(() => {
-    if (!currentlyReading.value) return 0;
-    
+    if (!currentlyReading.value) return 0
+
     // Se temos um livro com progresso de página atual e total de páginas
     if (currentlyReading.value.current_page && currentlyReading.value.page_count) {
-      return Math.round((currentlyReading.value.current_page / currentlyReading.value.page_count) * 100);
+      return Math.round(
+        (currentlyReading.value.current_page / currentlyReading.value.page_count) * 100,
+      )
     }
-    
-    return 35; // Valor fixo para exemplo, idealmente seria calculado
-  });
-  
+
+    return 35 // Valor fixo para exemplo, idealmente seria calculado
+  })
+
   // Total de livros
-  const totalBooks = computed(() => {
-    return books.value.length;
-  });
+  const totalBooks = ref(0)
 
   // Total de livros lidos (status 1)
-  const totalBooksRead = computed(() => {
-    return books.value.filter((book) => Number(book.status) === 1).length;
-  });
-  
+  const totalBooksRead = ref(0)
+
   // Total de livros em progresso (status 2)
-  const totalBooksInProgress = computed(() => {
-    return books.value.filter((book) => Number(book.status) === 2).length;
-  });
-  
+  const booksInProgress = ref(0)
+
   // Total de livros na wishlist (status 0)
-  const wishlistCount = computed(() => {
-    return books.value.filter((book) => Number(book.status) === 0).length;
-  });
+  const wishlistCount = ref(0)
 
   // Total de frases favoritas
   const totalFavoriteQuotes = computed(() => {
-    let count = 0;
-    
+    let count = 0
+
     // Verificar arrays de quotes na estrutura de dados
     books.value.forEach((book) => {
       // Array de quotes
       if (book.quotes && Array.isArray(book.quotes)) {
-        count += book.quotes.length;
+        count += book.quotes.length
       }
-    });
-    
+    })
+
     // Se já temos uma contagem dos livros carregados, usamos essa
     if (count > 0) {
-      return count;
+      return count
     }
-    
+
     // Caso a contagem ainda estiver em 0 e temos valor da API, usar esse
     if (quotesCount.value > 0) {
-      return quotesCount.value;
+      return quotesCount.value
     }
-    
+
     // Se ainda não temos dados, buscar do Supabase
     if (count === 0 && authStore.user?.id) {
-      // Esta operação será executada de forma assíncrona 
-      fetchQuotesCount();
+      // Esta operação será executada de forma assíncrona
+      fetchQuotesCount()
     }
-    
-    return quotesCount.value;
-  });
+
+    return quotesCount.value
+  })
 
   // Buscar todas as frases do Supabase
   const fetchQuotesCount = async () => {
-    if (!authStore.user?.id) return 0;
-    
+    if (!authStore.user?.id) return 0
+
     try {
-      console.log("Buscando contagem de citações para o usuário:", authStore.user.id);
-      
+      console.log('Buscando contagem de citações para o usuário:', authStore.user.id)
+
       // Buscar citações do Supabase da tabela quotes (não phases)
       const { count, error } = await supabase
         .from('quotes')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', authStore.user.id);
-      
+        .eq('user_id', authStore.user.id)
+
       if (error) {
-        if (error.code === '42P01') { // Tabela não existe
-          console.log('A tabela "quotes" não foi encontrada, usando valor padrão');
-          return 0;
+        if (error.code === '42P01') {
+          // Tabela não existe
+          console.log('A tabela "quotes" não foi encontrada, usando valor padrão')
+          return 0
         }
-        throw error;
+        throw error
       }
-      
-      console.log("Contagem de citações encontrada:", count);
-      quotesCount.value = count || 0;
-      return count;
+
+      console.log('Contagem de citações encontrada:', count)
+      quotesCount.value = count || 0
+      return count
     } catch (error) {
-      console.error('Erro ao buscar contagem de citações:', error);
-      return 0;
+      console.error('Erro ao buscar contagem de citações:', error)
+      return 0
     }
-  };
+  }
 
   // Distribuição por gênero
-  const genresDistribution = computed(() => {
-    const genreCounts = {};
-    books.value.forEach((book) => {
-      const genre = book.genre || "Não categorizado";
-      genreCounts[genre] = (genreCounts[genre] || 0) + 1;
-    });
-    return genreCounts;
-  });
+  const genresDistribution = ref({})
+
+  const calculateGenresDistribution = (processedBooks) => {
+    const genreCounts = {}
+    processedBooks.forEach((book) => {
+      const genre = book.genre || 'Não categorizado'
+      genreCounts[genre] = (genreCounts[genre] || 0) + 1
+    })
+    genresDistribution.value = genreCounts
+  }
 
   // Tempo médio de leitura
-  const averageReadingTime = computed(() => {
-    let totalTime = 0;
-    let completedBooks = 0;
-    
-    console.log("Calculando tempo médio de leitura com", books.value.length, "livros");
+  const averageReadingTime = ref(0)
 
-    books.value.forEach((book) => {
-      // Log para debug
-      if (Number(book.status) === 1) {
-        console.log("Analisando livro concluído:", book.title);
-        console.log("Datas disponíveis:", {
-          started_reading_at: book.started_reading_at,
-          finished_reading_at: book.finished_reading_at,
-          dataInicioLeitura: book.dataInicioLeitura,
-          dataFinalLeitura: book.dataFinalLeitura
-        });
-      }
+  const calculateAverageReadingTime = (processedBooks) => {
+    let totalTime = 0
+    let completedBooks = 0
 
+    console.log('Calculando tempo médio de leitura com', processedBooks.length, 'livros')
+
+    processedBooks.forEach((book) => {
       // Se o livro não está marcado como lido (status 1), não consideramos
-      if (Number(book.status) !== 1) return;
-      
+      if (!isCompleted(book)) return
+
       // Primeiro tentamos usar os campos do banco
       if (book.started_reading_at && book.finished_reading_at) {
-        const start = new Date(book.started_reading_at).getTime();
-        const end = new Date(book.finished_reading_at).getTime();
-        
-        const daysElapsed = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-        console.log(`Livro ${book.title}: ${daysElapsed} dias (formato ISO)`);
-        
-        totalTime += daysElapsed;
-        completedBooks++;
-      } 
+        const start = new Date(book.started_reading_at).getTime()
+        const end = new Date(book.finished_reading_at).getTime()
+
+        if (end >= start) {
+          // Verificar se as datas são válidas (fim > início)
+          const daysElapsed = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)))
+          console.log(`Livro ${book.title}: ${daysElapsed} dias (formato ISO)`)
+
+          totalTime += daysElapsed
+          completedBooks++
+        }
+      }
       // Se não tiver, tentamos usar os campos formatados em DD/MM/YYYY
       else if (book.dataInicioLeitura && book.dataFinalLeitura) {
         try {
           // Convertendo datas no formato DD/MM/YYYY para objetos Date
           const parseDate = (dateStr) => {
-            if (!dateStr) return null;
-            const parts = dateStr.split('/');
-            if (parts.length !== 3) return null;
-            
-            const [day, month, year] = parts.map(Number);
-            if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-            
+            if (!dateStr) return null
+            const parts = dateStr.split('/')
+            if (parts.length !== 3) return null
+
+            const [day, month, year] = parts.map(Number)
+            if (isNaN(day) || isNaN(month) || isNaN(year)) return null
+
             // Mês em JS começa do zero (janeiro = 0)
-            return new Date(year, month - 1, day);
-          };
-          
-          const startDate = parseDate(book.dataInicioLeitura);
-          const endDate = parseDate(book.dataFinalLeitura);
-          
-          if (startDate && endDate) {
-            const start = startDate.getTime();
-            const end = endDate.getTime();
-            
+            return new Date(year, month - 1, day)
+          }
+
+          const startDate = parseDate(book.dataInicioLeitura)
+          const endDate = parseDate(book.dataFinalLeitura)
+
+          if (startDate && endDate && endDate >= startDate) {
+            const start = startDate.getTime()
+            const end = endDate.getTime()
+
             // Garantir que não estamos calculando valores negativos
             // e usar no mínimo 1 dia para evitar divisão por zero
-            const daysElapsed = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-            console.log(`Livro ${book.title}: ${daysElapsed} dias (formato DD/MM/YYYY)`);
-            
-            totalTime += daysElapsed;
-            completedBooks++;
+            const daysElapsed = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)))
+            console.log(`Livro ${book.title}: ${daysElapsed} dias (formato DD/MM/YYYY)`)
+
+            totalTime += daysElapsed
+            completedBooks++
           }
         } catch (err) {
-          console.error(`Erro ao processar datas do livro ${book.title}:`, err);
+          console.error(`Erro ao processar datas do livro ${book.title}:`, err)
         }
       }
-      // Se não tiver nenhuma data, usamos um valor padrão estimado
-      else if (completedBooks === 0) {
-        // Atribui um valor padrão de 14 dias para pelo menos um livro se não tivermos nenhum com datas
-        console.log(`Livro ${book.title}: usando valor padrão de 14 dias`);
-        totalTime = 14;
-        completedBooks = 1;
-      }
-    });
+    })
 
-    console.log(`Total: ${totalTime} dias para ${completedBooks} livros`);
-    
-    // Se não temos livros concluídos com datas, ou se por algum motivo o cálculo deu zero
+    console.log(`Total: ${totalTime} dias para ${completedBooks} livros`)
+
+    // Se não temos livros concluídos com datas válidas
     if (completedBooks === 0 || totalTime === 0) {
-      // Usamos um valor padrão baseado em estatísticas médias de leitura (14 dias por livro)
-      return 14;
+      // Calcular com base na média de livros lidos e o dia do ano atual
+      const now = new Date()
+      const startOfYear = new Date(now.getFullYear(), 0, 1)
+      const daysElapsed = Math.floor(
+        (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24),
+      )
+
+      // Se temos livros lidos, calculamos a média baseada no dia do ano
+      const booksRead = totalBooksRead.value
+      if (booksRead > 0 && daysElapsed > 0) {
+        averageReadingTime.value = Math.round(daysElapsed / booksRead)
+        return
+      }
+
+      // Caso realmente não tenha dados suficientes, usamos um valor padrão
+      averageReadingTime.value = 14
+      return
     }
 
-    return Math.round(totalTime / completedBooks);
-  });
+    averageReadingTime.value = Math.round(totalTime / completedBooks)
+  }
 
   // Último livro lido
-  const lastBookRead = computed(() => {
-    // Filtramos livros com status 1 (já lidos)
-    const completedBooks = books.value.filter((book) => Number(book.status) === 1);
-    if (completedBooks.length === 0) return null;
-    
-    return completedBooks.sort((a, b) => {
-      // Função para obter a data mais recente possível do livro
-      const getCompletionDate = (book) => {
-        // Primeiro tentamos o campo finished_reading_at do banco
-        if (book.finished_reading_at) {
-          return new Date(book.finished_reading_at).getTime();
-        }
-        
-        // Se não tiver, tentamos usar o campo dataFinalLeitura formatado em DD/MM/YYYY
-        if (book.dataFinalLeitura) {
-          const [day, month, year] = book.dataFinalLeitura.split('/').map(Number);
-          return new Date(year, month - 1, day).getTime();
-        }
-        
-        // Se não tiver nenhuma data, usamos a data atual
-        return Date.now();
-      };
-      
-      const dateA = getCompletionDate(a);
-      const dateB = getCompletionDate(b);
-      
-      return dateB - dateA;
-    })[0];
-  });
+  const lastBookRead = ref(null)
+
+  // Funções auxiliares para verificar status dos livros de forma consistente
+  const ensureNumberStatus = (book) => {
+    if (!book) return null
+
+    // Se o status não for um número, converter para número
+    if (book.status !== undefined && book.status !== null && typeof book.status !== 'number') {
+      console.log(
+        `[DashboardStore] Convertendo status do livro ${book.title} de ${typeof book.status} para number`,
+      )
+      book.status = Number(book.status)
+    }
+
+    return book
+  }
+
+  // Verifica o status de um livro retornando um valor booleano
+  const checkBookStatus = (book, statusValue) => {
+    if (!book) return false
+    const processedBook = ensureNumberStatus(book)
+    return Number(processedBook.status) === statusValue
+  }
+
+  // Estas funções garantem a verificação segura e consistente dos status
+  const isReading = (book) => checkBookStatus(book, 2) // Status 2 = Lendo
+  const isCompleted = (book) => checkBookStatus(book, 1) // Status 1 = Lido
+  const isWishlist = (book) => checkBookStatus(book, 0) // Status 0 = Quero ler
+
+  // Função para processar os dados de livros
+  const processBooks = (books) => {
+    if (!books || !Array.isArray(books)) {
+      console.warn('[DashboardStore] Tentativa de processar livros inválidos:', books)
+      return []
+    }
+
+    // Processa e converte o status para número em todos os livros
+    return books.map((book) => ensureNumberStatus(book))
+  }
 
   // Carregar meta de leitura do localStorage ou criar um padrão
   const loadReadingGoal = async () => {
     try {
       // Primeiro, tentamos carregar do localStorage
-      const savedGoal = localStorage.getItem('readingGoal');
+      const savedGoal = localStorage.getItem('readingGoal')
       if (savedGoal) {
-        const parsedGoal = JSON.parse(savedGoal);
-        readingGoal.value = parsedGoal;
-        readingGoalLoaded.value = true;
-        console.log("Meta de leitura carregada do localStorage:", parsedGoal);
-        return;
+        const parsedGoal = JSON.parse(savedGoal)
+        readingGoal.value = parsedGoal
+        readingGoalLoaded.value = true
+        console.log('Meta de leitura carregada do localStorage:', parsedGoal)
+        return
       }
-      
+
       // Se não temos no localStorage e temos um usuário, tentamos carregar do perfil
       if (authStore.user?.id) {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('reading_goal')
           .eq('id', authStore.user.id)
-          .single();
-        
+          .single()
+
         if (!profileError && profileData?.reading_goal) {
-          const newGoal = { 
-            year: new Date().getFullYear(), 
-            target: profileData.reading_goal || 20 
-          };
-          readingGoal.value = newGoal;
-          localStorage.setItem('readingGoal', JSON.stringify(newGoal));
-          readingGoalLoaded.value = true;
-          console.log("Meta de leitura carregada do perfil:", newGoal);
-          return;
+          const newGoal = {
+            year: new Date().getFullYear(),
+            target: profileData.reading_goal || 20,
+          }
+          readingGoal.value = newGoal
+          localStorage.setItem('readingGoal', JSON.stringify(newGoal))
+          readingGoalLoaded.value = true
+          console.log('Meta de leitura carregada do perfil:', newGoal)
+          return
         }
       }
 
       // Se chegamos aqui, não conseguimos carregar do banco nem do localStorage
       // Vamos usar um valor padrão
-      const defaultGoal = { year: new Date().getFullYear(), target: 20 };
-      readingGoal.value = defaultGoal;
-      localStorage.setItem('readingGoal', JSON.stringify(defaultGoal));
-      readingGoalLoaded.value = true;
-      console.log("Meta de leitura padrão definida:", defaultGoal);
-      
+      const defaultGoal = { year: new Date().getFullYear(), target: 20 }
+      readingGoal.value = defaultGoal
+      localStorage.setItem('readingGoal', JSON.stringify(defaultGoal))
+      readingGoalLoaded.value = true
+      console.log('Meta de leitura padrão definida:', defaultGoal)
     } catch (error) {
-      console.error('Erro ao carregar meta de leitura:', error);
+      console.error('Erro ao carregar meta de leitura:', error)
       // Definir um valor padrão em caso de erro
-      readingGoal.value = { year: new Date().getFullYear(), target: 20 };
-      readingGoalLoaded.value = true;
+      readingGoal.value = { year: new Date().getFullYear(), target: 20 }
+      readingGoalLoaded.value = true
     }
-  };
-  
+  }
+
   // Salvar meta de leitura no localStorage e tentar salvar no perfil
   const saveReadingGoal = async (goal: ReadingGoal) => {
     try {
       // Salvar no localStorage sempre
-      localStorage.setItem('readingGoal', JSON.stringify(goal));
-      readingGoal.value = goal;
-      
+      localStorage.setItem('readingGoal', JSON.stringify(goal))
+      readingGoal.value = goal
+
       // Tentar salvar no perfil do usuário se possível
       if (authStore.user?.id) {
         const { error: userUpdateError } = await supabase
           .from('profiles')
           .update({ reading_goal: goal.target })
-          .eq('id', authStore.user.id);
-        
+          .eq('id', authStore.user.id)
+
         if (userUpdateError) {
-          console.warn('Erro ao atualizar meta no perfil:', userUpdateError);
+          console.warn('Erro ao atualizar meta no perfil:', userUpdateError)
         } else {
-          console.log('Meta de leitura atualizada no perfil com sucesso');
+          console.log('Meta de leitura atualizada no perfil com sucesso')
         }
       }
-      
-      return true;
-    } catch (error) {
-      console.error('Erro ao salvar meta de leitura:', error);
-      return false;
-    }
-  };
 
-  // Buscar dados do dashboard
-  const fetchDashboardData = async () => {
-    try {
-      // Carregar a meta de leitura
-      await loadReadingGoal();
-      
-      // Buscar contagem de frases do Supabase
-      if (authStore.user?.id) {
-        await fetchQuotesCount();
-      }
+      return true
     } catch (error) {
-      console.error('Erro ao carregar dados do dashboard:', error);
+      console.error('Erro ao salvar meta de leitura:', error)
+      return false
     }
-  };
+  }
+
+  // Método de carregamento de dados para o dashboard
+  const loadDashboardData = async (loadId) => {
+    console.log(`[DashboardStore] Iniciando carregamento (ID: ${loadId})`)
+    isLoading.value = true
+    lastLoadId.value = loadId
+
+    try {
+      if (!bookshelfStore.books || bookshelfStore.books.length === 0) {
+        console.log('[DashboardStore] Sem livros para processar, tentando buscar...')
+        await bookshelfStore.fetchBooks()
+      }
+
+      // Verificar se outro carregamento foi iniciado
+      if (window.DASHBOARD_LOAD_ID !== undefined && window.DASHBOARD_LOAD_ID !== loadId) {
+        console.log(`[DashboardStore] Carregamento ${loadId} cancelado após fetchBooks`)
+        return
+      }
+
+      // Carregar a meta de leitura do localStorage ou Supabase
+      await loadReadingGoal()
+
+      // Verificar novamente se outro carregamento foi iniciado
+      if (window.DASHBOARD_LOAD_ID !== undefined && window.DASHBOARD_LOAD_ID !== loadId) {
+        console.log(`[DashboardStore] Carregamento ${loadId} cancelado após loadReadingGoal`)
+        return
+      }
+
+      // Processar livros para garantir consistência de status
+      console.log(`[DashboardStore] Processando ${bookshelfStore.books.length} livros`)
+      const processedBooks = processBooks(bookshelfStore.books)
+
+      // Contar os livros por status
+      totalBooks.value = processedBooks.length
+      totalBooksRead.value = processedBooks.filter(isCompleted).length
+      booksInProgress.value = processedBooks.filter(isReading).length
+      wishlistCount.value = processedBooks.filter(isWishlist).length
+
+      // Identificar o livro atual
+      currentlyReading.value = processedBooks.find(isReading) || null
+
+      if (currentlyReading.value) {
+        console.log(`[DashboardStore] Livro atual identificado: ${currentlyReading.value.title}`)
+      } else {
+        console.log('[DashboardStore] Nenhum livro sendo lido no momento')
+      }
+
+      // Identificar o último livro lido (ordenado por data de conclusão, decrescente)
+      const completedBooks = processedBooks
+        .filter((book) => isCompleted(book) && book.finished_reading_at)
+        .sort((a, b) => new Date(b.finished_reading_at) - new Date(a.finished_reading_at))
+
+      lastBookRead.value = completedBooks.length > 0 ? completedBooks[0] : null
+
+      if (lastBookRead.value) {
+        console.log(`[DashboardStore] Último livro lido: ${lastBookRead.value.title}`)
+      }
+
+      // Calcular distribuição de gêneros
+      calculateGenresDistribution(processedBooks)
+
+      // Calcular tempo médio de leitura
+      calculateAverageReadingTime(processedBooks)
+
+      // Contar citações favoritas
+      await fetchQuotesCount()
+
+      console.log('[DashboardStore] Carregamento de dados do dashboard concluído com sucesso')
+    } catch (err) {
+      console.error('[DashboardStore] Erro ao carregar dados:', err)
+    } finally {
+      console.log(`[DashboardStore] Carregamento ${loadId} finalizado`)
+      isLoading.value = false
+    }
+  }
 
   return {
     totalBooks,
     totalBooksRead,
-    totalBooksInProgress,
+    booksInProgress,
     wishlistCount,
     totalFavoriteQuotes,
     genresDistribution,
@@ -355,8 +431,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
     lastBookRead,
     readingGoal,
     readingGoalLoaded,
-    fetchDashboardData,
+    isLoading,
+    loadDashboardData,
     saveReadingGoal,
-    loadReadingGoal
-  };
-});
+    loadReadingGoal,
+  }
+})
