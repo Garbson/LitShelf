@@ -75,9 +75,9 @@
                     </template>
 
                     <v-list-item-title>{{ user.displayName || 'Usuário' }}</v-list-item-title>
-                    <v-list-item-subtitle class="text-truncate"
-                      >ID: {{ user.id }}</v-list-item-subtitle
-                    >
+                    <v-list-item-subtitle class="text-caption">
+                      <span class="font-weight-bold">ID:</span> {{ user.id }}
+                    </v-list-item-subtitle>
 
                     <template v-slot:append>
                       <v-btn
@@ -293,42 +293,26 @@
                       </v-card-item>
 
                       <v-card-text class="pt-0">
-                        <v-chip size="small" color="primary" variant="outlined" class="mb-3">
-                          {{ friend.bookCount || 0 }} livros na estante
-                        </v-chip>
-
-                        <!-- Botões de ação -->
-                        <div class="d-flex justify-space-between align-center gap-2 mt-2">
+                        <div class="d-flex flex-column gap-2 mt-3">
                           <v-btn
                             block
                             color="primary"
                             variant="elevated"
                             prepend-icon="mdi-bookshelf"
                             @click="viewFriendBookshelf(friend)"
-                            class="flex-grow-1"
                           >
                             Ver estante
                           </v-btn>
-
-                          <v-menu location="bottom">
-                            <template v-slot:activator="{ props }">
-                              <v-btn
-                                v-bind="props"
-                                icon="mdi-dots-vertical"
-                                variant="text"
-                                size="small"
-                                @click.stop
-                              />
-                            </template>
-                            <v-list>
-                              <v-list-item @click="removeFriend(friend.id)">
-                                <v-list-item-title class="d-flex align-center text-error">
-                                  <v-icon class="me-2" color="error">mdi-account-remove</v-icon>
-                                  Remover amigo
-                                </v-list-item-title>
-                              </v-list-item>
-                            </v-list>
-                          </v-menu>
+                          <v-btn
+                            block
+                            color="error"
+                            class="mt-3"
+                            variant="tonal"
+                            prepend-icon="mdi-account-remove"
+                            @click="openRemoveFriendDialog(friend)"
+                          >
+                            Remover Amigo
+                          </v-btn>
                         </div>
                       </v-card-text>
                     </v-card>
@@ -514,61 +498,12 @@ const searchUsers = async () => {
   }
 }
 
-// Carregar todos os usuários
-const loadAllUsers = async () => {
-  try {
-    isLoadingAllUsers.value = true
-    allUsersLoaded.value = false
-    displayedUsers.value = []
+// Adicione esta função ao seu <script setup>
 
-    // Usar a nova função que busca os usuários públicos
-    const result = await friendsStore.fetchAllUsersPublic()
-
-    if (result.users && result.users.length > 0) {
-      displayedUsers.value = result.users.map((user) => ({
-        id: user.id,
-        email: user.email,
-        displayName: user.name,
-        photoURL: user.photoUrl,
-        friendshipStatus: user.friendshipStatus,
-        friendshipId: user.friendshipId,
-        isSender: user.isSender,
-      }))
-      allUsersLoaded.value = true
-    }
-  } catch (error) {
-    console.error('Erro ao carregar todos os usuários:', error)
-    showNotification('Erro ao carregar usuários', 'error')
-  } finally {
-    isLoadingAllUsers.value = false
-  }
-}
-
-// Carregar usuários do auth.users
-const loadAuthUsers = async () => {
-  try {
-    isLoadingAuthUsers.value = true
-    displayedUsers.value = []
-
-    const result = await friendsStore.fetchAuthUsers()
-
-    if (result.users && result.users.length > 0) {
-      displayedUsers.value = result.users.map((user) => ({
-        id: user.id,
-        email: user.email,
-        displayName: user.name,
-        photoURL: user.photoUrl,
-        friendshipStatus: user.friendshipStatus,
-        friendshipId: user.friendshipId,
-        isSender: user.isSender,
-      }))
-    }
-  } catch (error) {
-    console.error('Erro ao carregar usuários do auth.users:', error)
-    showNotification('Erro ao carregar usuários do auth.users', 'error')
-  } finally {
-    isLoadingAuthUsers.value = false
-  }
+const openRemoveFriendDialog = (friend: any) => {
+  // A função de remoção espera o ID da amizade
+  friendToRemoveId.value = friend.friendshipId || friend.id
+  confirmRemoveFriend.value = true
 }
 
 // Determinar o ícone a ser exibido no botão de ação de amizade

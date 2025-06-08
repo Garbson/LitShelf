@@ -79,11 +79,14 @@
               <v-icon icon="mdi-book-open-page-variant" color="primary" class="me-2"></v-icon>
               <span class="text-h6">Lendo no Momento</span>
             </v-card-title>
-            <v-card-text v-if="currentlyReadingBook">
+            <v-card-text v-if="dashboardStore.currentlyReadingBook">
               <div class="d-flex flex-column flex-md-row">
                 <div class="book-cover-container me-md-4 mb-4 mb-md-0">
                   <v-img
-                    :src="currentlyReadingBook?.cover_image_url || '/placeholder-book.png'"
+                    :src="
+                      dashboardStore.currentlyReadingBook?.cover_image_url ||
+                      '/placeholder-book.png'
+                    "
                     height="180"
                     width="120"
                     cover
@@ -91,8 +94,8 @@
                   />
                 </div>
                 <div class="flex-grow-1">
-                  <h3 class="text-h6 mb-2">{{ currentlyReadingBook?.title }}</h3>
-                  <p class="text-subtitle-2">{{ currentlyReadingBook?.author }}</p>
+                  <h3 class="text-h6 mb-2">{{ dashboardStore.currentlyReadingBook?.title }}</h3>
+                  <p class="text-subtitle-2">{{ dashboardStore.currentlyReadingBook?.author }}</p>
 
                   <div class="mt-4">
                     <div class="d-flex justify-space-between mt-1">
@@ -104,7 +107,7 @@
                         variant="outlined"
                         color="primary"
                         size="small"
-                        :to="`/book/${currentlyReadingBook.id}`"
+                        :to="`/book/${dashboardStore.currentlyReadingBook.id}`"
                       >
                         Ver detalhes
                       </v-btn>
@@ -113,11 +116,11 @@
                 </div>
               </div>
             </v-card-text>
-            <v-card-text v-else-if="lastReadBook" class="text-center py-6">
+            <v-card-text v-else-if="dashboardStore.lastReadBook" class="text-center py-6">
               <div class="d-flex flex-column flex-md-row">
                 <div class="book-cover-container me-md-4 mb-4 mb-md-0">
                   <v-img
-                    :src="lastReadBook?.cover_image_url || '/placeholder-book.png'"
+                    :src="dashboardStore.lastReadBook?.cover_image_url || '/placeholder-book.png'"
                     height="180"
                     width="120"
                     cover
@@ -125,11 +128,11 @@
                   />
                 </div>
                 <div class="flex-grow-1">
-                  <h3 class="text-h6 mb-2">{{ lastReadBook?.title }}</h3>
-                  <p class="text-subtitle-2">{{ lastReadBook?.author }}</p>
+                  <h3 class="text-h6 mb-2">{{ dashboardStore.lastReadBook?.title }}</h3>
+                  <p class="text-subtitle-2">{{ dashboardStore.lastReadBook?.author }}</p>
 
                   <v-rating
-                    :model-value="Number(lastReadBook.rating || 0)"
+                    :model-value="Number(dashboardStore.lastReadBook.rating || 0)"
                     color="amber"
                     readonly
                     half-increments
@@ -137,12 +140,14 @@
                   ></v-rating>
                   <div class="d-flex justify-space-between mt-2">
                     <span class="text-caption">Avaliação</span>
-                    <span class="text-caption">{{ lastReadBook.rating || 'Sem avaliação' }}</span>
+                    <span class="text-caption">{{
+                      dashboardStore.lastReadBook.rating || 'Sem avaliação'
+                    }}</span>
                   </div>
                   <div class="d-flex justify-space-between mt-1">
                     <span class="text-caption">Concluído em</span>
                     <span class="text-caption">{{
-                      lastReadBook.finished_reading_at || 'Não definido'
+                      dashboardStore.lastReadBook.finished_reading_at || 'Não definido'
                     }}</span>
                   </div>
                   <div class="mt-4">
@@ -150,7 +155,7 @@
                       variant="outlined"
                       color="primary"
                       size="small"
-                      :to="`/book/${lastReadBook.id}`"
+                      :to="`/book/${dashboardStore.lastReadBook.id}`"
                     >
                       Ver detalhes
                     </v-btn>
@@ -566,141 +571,73 @@ const expandDescription = ref(false)
 const currentYear = new Date().getFullYear()
 const goalTarget = ref(20) // Valor inicial, será atualizado do Supabase
 
-// Livro atual e último livro lido
-const currentlyReadingBook = ref(null)
-const lastReadBook = ref(null)
-
-// Funções auxiliares para verificação segura de status
-const isWishlist = (book) => {
-  if (book === null || book === undefined) return false
-  const status = Number(book.status)
-  return status === 0
-}
-
-const isCompleted = (book) => {
-  if (book === null || book === undefined) return false
-  const status = Number(book.status)
-  return status === 1
-}
-
-const isReading = (book) => {
-  if (book === null || book === undefined) return false
-  const status = Number(book.status)
-  return status === 2
-}
-
-// Funções melhoradas para computar os totais
 const computedTotalBooks = computed(() => bookshelfStore.books.length)
+const computedTotalBooksRead = computed(() => bookshelfStore.booksByStatus[1]?.length || 0)
+const computedBooksInProgress = computed(() => bookshelfStore.booksByStatus[2]?.length || 0)
+const computedWishlistCount = computed(() => bookshelfStore.booksByStatus[0]?.length || 0)
 
-const computedTotalBooksRead = computed(
-  () => bookshelfStore.books.filter((book) => isCompleted(book)).length,
-)
+const hasGenreData = computed(() => Object.keys(dashboardStore.genresDistribution).length > 0)
 
-const computedBooksInProgress = computed(
-  () => bookshelfStore.books.filter((book) => isReading(book)).length,
-)
-
-const computedWishlistCount = computed(
-  () => bookshelfStore.books.filter((book) => isWishlist(book)).length,
-)
-
-// Formata a data de início da leitura para exibição
-const formattedStartDate = computed(() => {
-  if (!currentlyReadingBook.value) return 'Não definido'
-
-  const rawDate =
-    currentlyReadingBook.value.started_reading_at || currentlyReadingBook.value.dataInicioLeitura
-
-  if (!rawDate) return 'Não definido'
-
-  try {
-    const date = new Date(rawDate)
-    if (isNaN(date.getTime())) return 'Não definido'
-
-    return date.toLocaleDateString('pt-BR')
-  } catch (error) {
-    console.error('Erro ao formatar data:', error)
-    return 'Não definido'
-  }
-})
-
-// Verifica se temos dados de gênero para mostrar
-const hasGenreData = computed(() => {
-  const genres = dashboardStore.genresDistribution
-  return Object.keys(genres).length > 0
-})
-
-// Calcular progresso da meta de leitura
 const readingGoalProgress = computed(() => {
-  if (!dashboardStore.readingGoal.target) return 0
+  if (!dashboardStore.readingGoal.target || dashboardStore.readingGoal.target === 0) return 0
   return Math.min((computedTotalBooksRead.value / dashboardStore.readingGoal.target) * 100, 100)
 })
 
-// Mensagem de progresso da meta
-const readingGoalMessage = computed(() => {
-  if (readingGoalProgress.value === 100) {
-    return 'Parabéns! Você atingiu sua meta de leitura anual.'
-  } else if (readingGoalProgress.value > 50) {
-    return 'Você está indo muito bem! Continue assim.'
-  } else {
-    return 'Continue lendo para atingir sua meta anual.'
-  }
+// Esta computed lê o livro atual direto da dashboardStore.
+const formattedStartDate = computed(() => {
+  const book = dashboardStore.currentlyReading
+  if (!book) return 'Não definido'
+  return (
+    book.dataInicioLeitura ||
+    (book.started_reading_at
+      ? new Date(book.started_reading_at).toLocaleDateString('pt-BR')
+      : 'Não definido')
+  )
 })
 
-// Calcula projeção de livros até o final do ano
+const readingGoalMessage = computed(() => {
+  if (readingGoalProgress.value >= 100) {
+    return 'Parabéns! Você atingiu sua meta de leitura anual.'
+  }
+  if (readingGoalProgress.value > 50) {
+    return 'Você está indo muito bem! Continue assim.'
+  }
+  return 'Continue lendo para atingir sua meta anual.'
+})
+
 const projectedBooks = computed(() => {
   const now = new Date()
   const startOfYear = new Date(now.getFullYear(), 0, 1)
-  const daysElapsed = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
-
-  const isLeapYear = (year) => {
-    return year % 400 === 0 || (year % 100 !== 0 && year % 4 === 0)
-  }
-  const daysInYear = isLeapYear(now.getFullYear()) ? 366 : 365
-
-  const pace = computedTotalBooksRead.value / daysElapsed || 0
-
+  const daysElapsed = Math.max(
+    1,
+    Math.floor((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)),
+  )
+  const pace = computedTotalBooksRead.value / daysElapsed
+  const isLeap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+  const daysInYear = isLeap(now.getFullYear()) ? 366 : 365
   return Math.round(pace * daysInYear)
 })
 
-// Método melhorado para atualizar os dados do dashboard
-const refreshDashboardData = async () => {
-
-  try {
-    const loadId = Date.now()
-    window.DASHBOARD_LOAD_ID = loadId
-
-    await bookshelfStore.fetchBooks()
-
-    if (window.DASHBOARD_LOAD_ID !== loadId) {
-      return
+watch(
+  () => dashboardStore.readingGoal.target,
+  (newTarget) => {
+    if (goalTarget.value !== newTarget) {
+      goalTarget.value = newTarget
     }
+  },
+)
 
-
-
-    const readingBooks = bookshelfStore.books.filter((book) => isReading(book))
-    if (readingBooks.length > 0) {
-      currentlyReadingBook.value = readingBooks[0]
-    } else {
-      currentlyReadingBook.value = null
+// Recria o gráfico quando os dados de gênero da store mudam
+watch(
+  () => dashboardStore.genresDistribution,
+  (newDistribution) => {
+    // Adicionamos a verificação para garantir que o canvas já existe
+    if (newDistribution && genreChartRef.value) {
+      createOrUpdateChart()
     }
-
-    const completedBooks = bookshelfStore.books
-      .filter((book) => isCompleted(book) && book.finished_reading_at)
-      .sort((a, b) => new Date(b.finished_reading_at) - new Date(a.finished_reading_at))
-
-    if (completedBooks.length > 0) {
-      lastReadBook.value = completedBooks[0]
-    } else {
-      lastReadBook.value = null
-    }
-
-    await recommendationStore.fetchRecommendations()
-
-  } catch (error) {
-    console.error('[Dashboard] Erro ao atualizar dados:', error)
-  }
-}
+  },
+  { deep: true },
+)
 
 // Fornece uma mensagem com base no ritmo de leitura
 const getRitmoLeituraMessage = () => {
@@ -714,14 +651,14 @@ const getRitmoLeituraMessage = () => {
   }
 }
 
-// Carrega os dados quando o componente é montado
 onMounted(() => {
-  refreshDashboardData()
+  // Apenas uma chamada para carregar tudo que o dashboard precisa
+  dashboardStore.fetchDashboardData()
 })
 
-// Recarrega os dados quando o componente é reativado (ex: ao voltar para esta página)
 onActivated(() => {
-  refreshDashboardData()
+  // Garante que os dados sejam atualizados ao voltar para a aba do dashboard
+  dashboardStore.fetchDashboardData()
 })
 
 // Recria o gráfico quando os dados mudam
@@ -817,29 +754,19 @@ const showAllRecommendations = () => {
   router.push('/recommendations')
 }
 
-// Salvar nova meta de leitura
 const saveReadingGoal = async () => {
   if (!goalTarget.value || goalTarget.value < 1) {
-    showNotification('Por favor, defina uma meta válida (mínimo 1 livro)', 'warning')
+    showNotification('Por favor, defina uma meta válida', 'warning')
     return
   }
+  const success = await dashboardStore.saveReadingGoal({
+    year: currentYear,
+    target: goalTarget.value,
+  })
 
-  try {
-    const success = await dashboardStore.saveReadingGoal({
-      year: currentYear,
-      target: goalTarget.value,
-    })
-
-    if (success) {
-      showNotification(
-        `Meta de ${goalTarget.value} livros definida para ${currentYear}!`,
-        'success',
-      )
-    } else {
-      showNotification('Erro ao salvar meta de leitura', 'error')
-    }
-  } catch (error) {
-    console.error('Erro ao salvar meta:', error)
+  if (success) {
+    showNotification(`Meta de ${goalTarget.value} livros salva para ${currentYear}!`, 'success')
+  } else {
     showNotification('Erro ao salvar meta de leitura', 'error')
   }
 }
@@ -876,7 +803,7 @@ const openRecommendationDetails = async (recommendation) => {
             description: bookDetails.description,
           },
         }
-      } 
+      }
     } catch (error) {
       console.error('Erro ao buscar detalhes do livro:', error)
     } finally {
