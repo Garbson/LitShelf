@@ -72,110 +72,6 @@
           </v-card>
         </v-col>
 
-        <!-- Livro atual / último livro lido -->
-        <v-col cols="12" md="6">
-          <v-card class="mb-4 pa-4 dashboard-card current-book-card" elevation="2">
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-book-open-page-variant" color="primary" class="me-2"></v-icon>
-              <span class="text-h6">Lendo no Momento</span>
-            </v-card-title>
-            <v-card-text v-if="dashboardStore.currentlyReadingBook">
-              <div class="d-flex flex-column flex-md-row">
-                <div class="book-cover-container me-md-4 mb-4 mb-md-0">
-                  <v-img
-                    :src="
-                      dashboardStore.currentlyReadingBook?.cover_image_url ||
-                      '/placeholder-book.png'
-                    "
-                    height="180"
-                    width="120"
-                    cover
-                    class="rounded-lg book-cover"
-                  />
-                </div>
-                <div class="flex-grow-1">
-                  <h3 class="text-h6 mb-2">{{ dashboardStore.currentlyReadingBook?.title }}</h3>
-                  <p class="text-subtitle-2">{{ dashboardStore.currentlyReadingBook?.author }}</p>
-
-                  <div class="mt-4">
-                    <div class="d-flex justify-space-between mt-1">
-                      <span class="text-caption">Iniciado em</span>
-                      <span class="text-caption">{{ formattedStartDate }}</span>
-                    </div>
-                    <div class="mt-4">
-                      <v-btn
-                        variant="outlined"
-                        color="primary"
-                        size="small"
-                        :to="`/book/${dashboardStore.currentlyReadingBook.id}`"
-                      >
-                        Ver detalhes
-                      </v-btn>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </v-card-text>
-            <v-card-text v-else-if="dashboardStore.lastReadBook" class="text-center py-6">
-              <div class="d-flex flex-column flex-md-row">
-                <div class="book-cover-container me-md-4 mb-4 mb-md-0">
-                  <v-img
-                    :src="dashboardStore.lastReadBook?.cover_image_url || '/placeholder-book.png'"
-                    height="180"
-                    width="120"
-                    cover
-                    class="rounded-lg book-cover"
-                  />
-                </div>
-                <div class="flex-grow-1">
-                  <h3 class="text-h6 mb-2">{{ dashboardStore.lastReadBook?.title }}</h3>
-                  <p class="text-subtitle-2">{{ dashboardStore.lastReadBook?.author }}</p>
-
-                  <v-rating
-                    :model-value="Number(dashboardStore.lastReadBook.rating || 0)"
-                    color="amber"
-                    readonly
-                    half-increments
-                    size="small"
-                  ></v-rating>
-                  <div class="d-flex justify-space-between mt-2">
-                    <span class="text-caption">Avaliação</span>
-                    <span class="text-caption">{{
-                      dashboardStore.lastReadBook.rating || 'Sem avaliação'
-                    }}</span>
-                  </div>
-                  <div class="d-flex justify-space-between mt-1">
-                    <span class="text-caption">Concluído em</span>
-                    <span class="text-caption">{{
-                      dashboardStore.lastReadBook.finished_reading_at || 'Não definido'
-                    }}</span>
-                  </div>
-                  <div class="mt-4">
-                    <v-btn
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                      :to="`/book/${dashboardStore.lastReadBook.id}`"
-                    >
-                      Ver detalhes
-                    </v-btn>
-                  </div>
-                </div>
-              </div>
-            </v-card-text>
-            <v-card-text v-else class="text-center py-6">
-              <v-icon
-                icon="mdi-book-open-variant-outline"
-                size="64"
-                color="grey-lighten-1"
-                class="mb-4"
-              ></v-icon>
-              <p>Você ainda não está lendo nenhum livro no momento.</p>
-              <v-btn color="primary" class="mt-4" to="/addBook">Adicionar livro</v-btn>
-            </v-card-text>
-          </v-card>
-        </v-col>
-
         <!-- Gráfico de Gêneros -->
         <v-col cols="12" md="6">
           <v-card class="mb-4 pa-4 dashboard-card chart-card" elevation="2">
@@ -297,7 +193,7 @@
         </v-col>
 
         <!-- Metas de Leitura -->
-        <v-col cols="12">
+        <v-col cols="12" md="6">
           <v-card class="mb-4 pa-4 dashboard-card" elevation="2">
             <v-card-title class="d-flex align-center">
               <v-icon icon="mdi-flag" color="primary" class="me-2"></v-icon>
@@ -638,6 +534,13 @@ watch(
   },
   { deep: true },
 )
+
+const createOrUpdateChart = () => {
+  if (!genreChartRef.value || !hasGenreData.value) return
+  if (genreChart) {
+    genreChart.destroy()
+  }
+}
 
 // Fornece uma mensagem com base no ritmo de leitura
 const getRitmoLeituraMessage = () => {
