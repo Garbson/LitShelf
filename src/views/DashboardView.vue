@@ -665,31 +665,24 @@ const projectedBooks = computed(() => {
 
 // Método melhorado para atualizar os dados do dashboard
 const refreshDashboardData = async () => {
-  console.log('[Dashboard] Iniciando atualização de dados...')
 
   try {
     const loadId = Date.now()
     window.DASHBOARD_LOAD_ID = loadId
-    console.log('[Dashboard] ID de carregamento:', loadId)
 
-    console.log('[Dashboard] Carregando lista completa de livros...')
     await bookshelfStore.fetchBooks()
 
     if (window.DASHBOARD_LOAD_ID !== loadId) {
-      console.log('[Dashboard] Carregamento cancelado - outro processo foi iniciado')
       return
     }
 
-    console.log(`[Dashboard] ${bookshelfStore.books.length} livros encontrados`)
-    console.log('[Dashboard] Atualizando dados derivados...')
+
 
     const readingBooks = bookshelfStore.books.filter((book) => isReading(book))
     if (readingBooks.length > 0) {
       currentlyReadingBook.value = readingBooks[0]
-      console.log('[Dashboard] Livro atual identificado:', currentlyReadingBook.value.title)
     } else {
       currentlyReadingBook.value = null
-      console.log('[Dashboard] Nenhum livro sendo lido no momento')
     }
 
     const completedBooks = bookshelfStore.books
@@ -698,24 +691,12 @@ const refreshDashboardData = async () => {
 
     if (completedBooks.length > 0) {
       lastReadBook.value = completedBooks[0]
-      console.log('[Dashboard] Último livro lido identificado:', lastReadBook.value.title)
     } else {
       lastReadBook.value = null
-      console.log('[Dashboard] Nenhum livro lido encontrado')
     }
 
-    console.log('[Dashboard] Carregando recomendações...')
     await recommendationStore.fetchRecommendations()
 
-    console.log('[Dashboard] ===== DADOS CARREGADOS =====')
-    console.log('Livros na BookshelfStore:', bookshelfStore.books.length)
-    console.log('Total de livros computados:', dashboardStore.totalBooks)
-    console.log('Livros lidos:', dashboardStore.totalBooksRead)
-    console.log('Em progresso:', dashboardStore.booksInProgress)
-    console.log('Livro atual:', currentlyReadingBook.value?.title)
-    console.log('Último livro lido:', lastReadBook.value?.title)
-    console.log('Meta de leitura:', dashboardStore.readingGoal?.target)
-    console.log('[Dashboard] ============================')
   } catch (error) {
     console.error('[Dashboard] Erro ao atualizar dados:', error)
   }
@@ -740,7 +721,6 @@ onMounted(() => {
 
 // Recarrega os dados quando o componente é reativado (ex: ao voltar para esta página)
 onActivated(() => {
-  console.log('Dashboard reativado, atualizando dados...')
   refreshDashboardData()
 })
 
@@ -877,24 +857,17 @@ const openRecommendationDetails = async (recommendation) => {
   showRecommendationDialog.value = true
 
   const bookId = recommendation.bookId || recommendation.book_id
-  console.log('ID do livro da recomendação:', bookId)
 
   if (recommendation.book?.description) {
-    console.log(
-      'Descrição do livro já disponível:',
-      recommendation.book.description.substring(0, 50) + '...',
-    )
     return
   }
 
   if (bookId) {
     isLoadingBookDetails.value = true
     try {
-      console.log('Buscando detalhes do livro com ID:', bookId)
       const bookDetails = await bookshelfStore.fetchBookDetails(bookId)
 
       if (bookDetails && bookDetails.description) {
-        console.log('Detalhes do livro encontrados:', bookDetails)
         selectedRecommendation.value = {
           ...selectedRecommendation.value,
           book: {
@@ -903,16 +876,12 @@ const openRecommendationDetails = async (recommendation) => {
             description: bookDetails.description,
           },
         }
-      } else {
-        console.log('Nenhuma descrição encontrada para o livro')
-      }
+      } 
     } catch (error) {
       console.error('Erro ao buscar detalhes do livro:', error)
     } finally {
       isLoadingBookDetails.value = false
     }
-  } else {
-    console.log('ID do livro não disponível na recomendação:', recommendation)
   }
 }
 

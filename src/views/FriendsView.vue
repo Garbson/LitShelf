@@ -535,10 +535,6 @@ const loadAllUsers = async () => {
         isSender: user.isSender,
       }))
       allUsersLoaded.value = true
-
-      console.log(`Encontrados ${displayedUsers.value.length} usuários`)
-    } else {
-      console.log('Nenhum usuário encontrado')
     }
   } catch (error) {
     console.error('Erro ao carregar todos os usuários:', error)

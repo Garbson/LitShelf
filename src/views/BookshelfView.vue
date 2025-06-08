@@ -371,8 +371,7 @@ watch(
 // Watcher para monitorar mudanças no friendId (quando a URL muda)
 watch(
   friendId,
-  async (newFriendId, oldFriendId) => {
-    console.log(`friendId mudou de ${oldFriendId} para ${newFriendId}`)
+  async (newFriendId) => {
 
     if (newFriendId) {
       // Estamos vendo a estante de um amigo
@@ -397,16 +396,11 @@ onMounted(async () => {
   // Em vez de tentar modificar books diretamente, usamos o método do store projetado para isso
   bookshelfStore.setViewingFriend(null) // Isso reseta o store para o modo de estante pessoal
 
-  console.log('BookshelfView montado - verificando se é uma estante de amigo...')
 
-  // Se houver um friendId no parâmetro da URL, buscar APENAS informações do amigo e seus livros
   if (friendId.value) {
-    console.log('É uma estante de amigo, carregando apenas dados do amigo:', friendId.value)
     await fetchFriendInfo(friendId.value)
     await loadFriendBooks(friendId.value)
   } else {
-    // Caso contrário, buscar APENAS os próprios livros
-    console.log('É a estante pessoal, carregando apenas livros pessoais')
     await refreshBookshelf()
   }
 })
@@ -414,13 +408,9 @@ onMounted(async () => {
 // Adicionar onActivated para garantir que os dados sejam atualizados
 // quando o usuário retorna à página da estante
 onActivated(() => {
-  console.log('BookshelfView ativado - verificando se deve recarregar livros...')
-  // Só recarrega os livros pessoais se não estiver visualizando a estante de um amigo
   if (!friendId.value) {
-    console.log('Recarregando estante pessoal...')
     refreshBookshelf()
   } else {
-    console.log('Mantendo a visualização da estante do amigo:', friendId.value)
     // Se for uma estante de amigo, garantir que não seja sobreposta
     loadFriendBooks(friendId.value)
   }
@@ -435,14 +425,12 @@ const goToBookDetails = (bookId: string) => {
   }
 }
 const refreshBookshelf = async () => {
-  console.log('Atualizando a estante...')
   await bookshelfStore.fetchBooks()
 }
 
 // Carrega os livros do amigo
 async function loadFriendBooks(id: string) {
   try {
-    console.log('Buscando livros do amigo com ID:', id)
     bookshelfStore.isLoading = true
     bookshelfStore.error = ''
 
@@ -454,11 +442,9 @@ async function loadFriendBooks(id: string) {
       throw new Error('Usuário não autenticado')
     }
 
-    console.log('ID do usuário atual:', currentUserId)
 
     // Usar o novo método específico para carregar livros de amigos
     await bookshelfStore.fetchFriendBooks(id)
-    console.log('Livros do amigo carregados via store específico')
   } catch (err) {
     console.error('Erro ao carregar livros do amigo:', err)
     bookshelfStore.error = 'Erro ao carregar livros do amigo.'
@@ -549,15 +535,13 @@ const resetFilters = () => {
 
 // Função para voltar à própria estante
 const goToMyBookshelf = async () => {
-  console.log('Navegando para minha estante...')
   friendInfo.value = null
 
   // Limpar o estado do store para garantir que não há mais referência aos livros do amigo
   bookshelfStore.setViewingFriend(null)
   friendBooks.value = [] // Limpar o array local também
 
-  // Forçar uma nova consulta para carregar apenas os livros do usuário atual
-  console.log('Recarregando meus livros...')
+
   await bookshelfStore.fetchBooks()
 
   // Navegar para a página da estante sem parâmetros de consulta

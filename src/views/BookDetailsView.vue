@@ -162,7 +162,7 @@
                     v-model="startDateFormatted"
                     type="date"
                     density="compact"
-                    @blur="updateStartDate"
+                    @blur="updateBookDates"
                   />
                   <p v-else>{{ startDateFormatted || 'Não informado' }}</p>
                 </template>
@@ -178,6 +178,7 @@
                     type="date"
                     density="compact"
                     class="mb-3"
+                    @blur="updateBookDates"
                   />
                   <p v-else class="mb-3">{{ startDateFormatted || 'Não informado' }}</p>
 
@@ -189,6 +190,7 @@
                     v-model="endDateFormatted"
                     type="date"
                     density="compact"
+                    @blur="updateBookDates"
                   />
                   <p v-else>{{ endDateFormatted || 'Não informado' }}</p>
                 </template>
@@ -635,12 +637,10 @@ onMounted(async () => {
   // Verifica se estamos visualizando um livro de um amigo
   if (friendIdFromQuery) {
     try {
-      console.log(`Carregando livro ${bookId} do amigo ${friendIdFromQuery}`)
 
       // Busca informações do amigo
       // Verificar se já temos os amigos carregados, se não, carregar
       if (friendsStore.friends.length === 0) {
-        console.log('Carregando lista de amigos para obter informações do amigo')
         await friendsStore.fetchFriends()
       }
 
@@ -649,7 +649,6 @@ onMounted(async () => {
 
       // Se não encontrou o amigo na lista, tentar buscar diretamente do banco
       if (!friend) {
-        console.log('Amigo não encontrado na lista de amigos, buscando diretamente')
         try {
           // Buscar informações do amigo diretamente do banco
           const { data, error } = await supabase
@@ -688,7 +687,6 @@ onMounted(async () => {
 
         // Fallback para consulta direta caso a view não retorne resultados
         if (quotesError || !quotes || quotes.length === 0) {
-          console.log('Fallback: Buscando citações diretamente da tabela quotes')
           const { data: directQuotes, error: directError } = await supabase
             .from('quotes')
             .select('*')
@@ -736,12 +734,6 @@ onMounted(async () => {
       router.push('/bookshelf')
     }
   } else {
-    // Verifica se temos um status em cache para este livro
-    const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}')
-    const cachedStatus = bookStatusCache[bookId]
-
-    console.log('Cache de status para o livro:', bookId, 'Status:', cachedStatus)
-
     // Carrega o livro
     try {
       // Garantir que não estamos mais no modo de visualização de amigo
@@ -749,19 +741,6 @@ onMounted(async () => {
 
       await bookshelfStore.fetchBookDetails(bookId)
       selectedBook.value = bookshelfStore.selectedBook
-
-      // Se temos um status em cache e ele é diferente do status que veio do banco
-      // vamos atualizá-lo para manter consistência
-      if (
-        cachedStatus !== undefined &&
-        selectedBook.value &&
-        Number(selectedBook.value.status) !== Number(cachedStatus)
-      ) {
-        console.log(
-          `Atualizando status do livro de ${selectedBook.value.status} para ${cachedStatus} baseado no cache.`,
-        )
-        selectedBook.value.status = Number(cachedStatus)
-      }
 
       // Carregando a avaliação, considerando os campos 'rating' ou 'avaliacao'
       if (selectedBook.value?.rating) {
@@ -885,32 +864,38 @@ const updateReadingStatus = async (newStatus: number) => {
   }
 }
 
+
 const updateBookDates = async () => {
-  if (!selectedBook.value || friendId.value) return
+  // Não faz nada se não houver livro selecionado ou se for a estante de um amigo
+  if (!selectedBook.value || friendId.value) return;
 
   try {
-    const bookId = selectedBook.value.id
+    const bookId = selectedBook.value.id;
+
+    // Converte as datas do formato de exibição (DD/MM/YYYY) para o formato que o banco precisa
     const startDate = selectedBook.value.dataInicioLeitura
       ? parseFormattedDate(selectedBook.value.dataInicioLeitura)
-      : null
+      : null;
     const endDate = selectedBook.value.dataFinalLeitura
       ? parseFormattedDate(selectedBook.value.dataFinalLeitura)
-      : null
+      : null;
 
+    // Prepara o objeto SOMENTE com as colunas de data que serão atualizadas
     const updateData = {
       started_reading_at: startDate ? startDate.toISOString() : null,
       finished_reading_at: endDate ? endDate.toISOString() : null,
-    }
+    };
 
-    await bookshelfStore.updateBook(bookId, updateData)
-    bookshelfStore.updateBookInList(bookId, updateData)
+    // USA A FUNÇÃO CORRETA E GENÉRICA DA STORE (a mesma do update de status)
+    await bookshelfStore.updateBook(bookId, updateData);
 
-    showNotification('Datas de leitura atualizadas!', 'success')
+    showNotification('Datas de leitura atualizadas!', 'success');
+    
   } catch (err: any) {
-    console.error('Erro ao atualizar datas:', err)
-    showNotification('Erro ao atualizar datas', 'error')
+    console.error('Erro ao atualizar datas:', err);
+    showNotification('Erro ao atualizar datas', 'error');
   }
-}
+};
 
 // Função genérica para mostrar notificações
 const showNotification = (text: string, color: string = 'success') => {
@@ -949,9 +934,7 @@ const addQuote = async () => {
 
 // Adicionar uma nova frase a partir do diálogo
 const addQuoteFromDialog = async () => {
-  console.log('⭐ addQuoteFromDialog chamado')
-  console.log('⭐ selectedBook:', selectedBook.value)
-  console.log('⭐ newQuote:', newQuote.value)
+
 
   if (!selectedBook.value) {
     console.error('Erro: selectedBook é null ou undefined')
@@ -966,7 +949,6 @@ const addQuoteFromDialog = async () => {
   }
 
   try {
-    console.log('⭐ Inicializando arrays de frases, se necessário')
     if (!selectedBook.value.quotes) {
       selectedBook.value.quotes = []
     }
@@ -977,15 +959,12 @@ const addQuoteFromDialog = async () => {
       selectedBook.value.quotesData = []
     }
 
-    console.log('⭐ Chamando bookshelfStore.addPhase com livro ID:', selectedBook.value.id)
     const quoteData = {
       text: newQuote.value.text,
       page: newQuote.value.page || null,
     }
-    console.log('⭐ Dados da frase:', quoteData)
 
     const quoteId = await bookshelfStore.addPhase(selectedBook.value.id, quoteData)
-    console.log('⭐ Resposta da API addPhase ID:', quoteId)
 
     // Adiciona a frase localmente para atualização imediata da UI
     selectedBook.value.quotes.push(newQuote.value.text)

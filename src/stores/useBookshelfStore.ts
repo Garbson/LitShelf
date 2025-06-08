@@ -78,7 +78,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
 
   // Método para definir que estamos visualizando a estante de um amigo
   const setViewingFriend = (friendId: string | null) => {
-    console.log(`Definindo visualização de amigo: ${friendId || 'nenhum'}`)
     viewingFriendId.value = friendId
 
     // Se não estamos mais visualizando a estante de um amigo, limpar os livros dele
@@ -90,11 +89,9 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
   // Garantir que o status dos livros seja sempre um número
   const ensureBookStatusIsNumber = (book) => {
     if (book && (book.status === undefined || book.status === null)) {
-      console.log(`Livro sem status definido: ${book.title}. Definindo como 0 (Wishlist)`)
       book.status = 0
     } else if (book && typeof book.status !== 'number') {
       // Se o status não for um número, converter para número
-      console.log(`Convertendo status do livro ${book.title} de ${typeof book.status} para number`)
       book.status = Number(book.status)
     }
     return book
@@ -111,8 +108,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     error.value = null
 
     try {
-      console.log('Buscando livros para usuário:', userId.value)
-
       // Consulta ao Supabase para buscar todos os livros do usuário
       const { data, error: supabaseError } = await supabase
         .from('books')
@@ -125,8 +120,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       }
 
       if (data && data.length > 0) {
-        console.log(`Encontrados ${data.length} livros`)
-
         // Fetch additional data for each book if needed
         const booksWithDetails = await Promise.all(
           data.map(async (book) => {
@@ -153,7 +146,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
             ensureBookStatusIsNumber(bookWithDates)
 
             if (!book.description || !book.page_count || !book.genre) {
-              console.log(`Buscando detalhes adicionais para o livro: ${book.title}`)
               const bookDetails = await fetchBookDetailsFromGoogle(book.title, book.author)
 
               // Atualizar o livro no Supabase com os detalhes obtidos
@@ -174,18 +166,9 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           }),
         )
 
-        // Verifica e loga o status de cada livro para ajudar no diagnóstico
-        booksWithDetails.forEach((book) => {
-          console.log(
-            `Livro carregado: ${book.title}, Status: ${book.status}, Tipo: ${typeof book.status}`,
-          )
-        })
-
         books.value = booksWithDetails
-        console.log('Todos os livros carregados com sucesso')
       } else {
         books.value = []
-        console.log('Nenhum livro encontrado para este usuário')
       }
     } catch (err: any) {
       console.error('Erro ao buscar livros:', err)
@@ -207,8 +190,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     setViewingFriend(friendId)
 
     try {
-      console.log('Buscando livros do amigo com ID:', friendId)
-
       // Usar a view friend_books_view
       const { data, error: supabaseError } = await supabase
         .from('friend_books_view')
@@ -222,8 +203,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       }
 
       if (data && data.length > 0) {
-        console.log(`Encontrados ${data.length} livros do amigo`)
-
         // Processar detalhes dos livros do amigo
         const friendBooksWithDetails = data.map((book) => {
           // Formatação de data para exibição em formato brasileiro
@@ -242,10 +221,8 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         })
 
         friendBooks.value = friendBooksWithDetails
-        console.log('Livros do amigo carregados com sucesso')
       } else {
         friendBooks.value = []
-        console.log('Nenhum livro encontrado para este amigo')
       }
     } catch (err: any) {
       console.error('Erro ao buscar livros do amigo:', err)
@@ -261,8 +238,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     if (!userId.value) return null
 
     try {
-      console.log(`Buscando detalhes do livro ${bookId} do amigo ${friendId}`)
-
       // Marcar que estamos vendo um livro do amigo
       setViewingFriend(friendId)
 
@@ -448,8 +423,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         throw new Error('Usuário não encontrado')
       }
 
-      console.log('Usuário autenticado:', currentUser.id)
-
       // Buscar detalhes adicionais se necessário
       const bookDetails = await fetchBookDetailsFromGoogle(bookData.title, bookData.author)
 
@@ -473,13 +446,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
           : null,
       }
 
-      // Log para depuração
-      console.log('Adicionando livro:', {
-        título: bookToSave.title,
-        id_usuário: bookToSave.user_id,
-        status: bookToSave.status,
-      })
-
       // Inserir no Supabase
       const { data, error: supabaseError } = await supabase
         .from('books')
@@ -494,8 +460,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         })
         throw supabaseError
       }
-
-      console.log('Livro adicionado com sucesso:', data?.[0]?.id)
 
       if (data && data[0]) {
         // Adicionar o livro à lista local
@@ -515,10 +479,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     if (!userId.value) return
 
     try {
-      console.log('Inserindo citação para o livro:', bookId)
-      console.log('Usuário ID:', userId.value)
-      console.log('Dados da citação:', phaseData)
-
       // Verificar se já existe uma citação igual para evitar duplicatas
       const { data: existingQuotes, error: checkError } = await supabase
         .from('quotes')
@@ -530,7 +490,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       if (checkError) {
         console.error('Erro ao verificar citações existentes:', checkError)
       } else if (existingQuotes && existingQuotes.length > 0) {
-        console.log('Citação já existe, não será adicionada novamente:', existingQuotes[0])
         return existingQuotes[0].id
       }
 
@@ -552,8 +511,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
         console.error('Erro completo ao inserir citação:', supabaseError)
         throw supabaseError
       }
-
-      console.log('Citação adicionada com sucesso:', data)
 
       // Atualizar o livro selecionado se for o mesmo
       if (selectedBook.value && selectedBook.value.id === bookId) {
@@ -701,11 +658,8 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
 
       // Verificar se já temos esta busca em cache
       if (googleBooksCache.has(cacheKey)) {
-        console.log(`[Google Books] Usando dados em cache para: ${title} - ${author}`)
         return googleBooksCache.get(cacheKey)
       }
-
-      console.log(`[Google Books] Buscando detalhes para: ${title} - ${author}`)
 
       // Se não está em cache, fazer a requisição à API
       const response = await fetch(
@@ -939,8 +893,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     if (!userId.value) return []
 
     try {
-      console.log(`Buscando citações favoritas do amigo ${friendId}`)
-
       // Buscar as citações na view específica de citações de amigos
       const { data, error: quotesError } = await supabase
         .from('friend_quotes_view')
@@ -951,9 +903,6 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
       if (quotesError) {
         console.error('Erro ao buscar citações do amigo:', quotesError)
 
-        // Caso a view não exista ainda, tentar buscar diretamente da tabela quotes
-        // Isso é um fallback para o caso da view ainda não ter sido criada
-        console.log('Tentando buscar diretamente da tabela quotes...')
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('quotes')
           .select('*, books(title, author, cover_image_url)')

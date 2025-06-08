@@ -28,38 +28,7 @@ const bookshelfStore = useBookshelfStore();
 const route = useRoute();
 const isAuthenticated = computed(() => !!authStore.user);
 
-// Observar mudanças na rota para garantir que os dados estejam atualizados
-watch(
-  () => route.path,
-  async (newPath) => {
-    if (isAuthenticated.value) {
-      // Se estamos entrando na estante, recarregar os livros
-      if (newPath === '/bookshelf') {
-        console.log('Rota alterada para estante. Recarregando livros...');
-        await bookshelfStore.fetchBooks();
-      }
-      
-      // Se estamos entrando em detalhes de um livro, garantir que temos os dados mais recentes
-      if (newPath.startsWith('/book/')) {
-        const bookId = newPath.split('/').pop();
-        if (bookId) {
-          console.log(`Rota alterada para detalhes do livro ${bookId}. Verificando cache de status...`);
-          
-          // Verificar se temos um status salvo no localStorage para este livro
-          const bookStatusCache = JSON.parse(localStorage.getItem('bookStatuses') || '{}');
-          const cachedStatus = bookStatusCache[bookId];
-          
-          if (cachedStatus !== undefined) {
-            console.log(`Status em cache encontrado para o livro ${bookId}: ${cachedStatus}`);
-            
-            // Aqui vamos apenas registrar que existe um cache para este livro
-            // O componente BookDetailsView vai usar este valor quando for carregado
-          }
-        }
-      }
-    }
-  }
-);
+
 
 // Função para garantir que o perfil do usuário exista
 const ensureUserProfile = async () => {
@@ -73,9 +42,7 @@ const ensureUserProfile = async () => {
         .single();
       
       // Se não houver perfil existente, criar um novo
-      if (fetchError && fetchError.code === 'PGRST116') { // PGRST116 = Nenhum resultado encontrado
-        console.log('Criando novo perfil para o usuário atual:', authStore.user.id);
-        
+      if (fetchError && fetchError.code === 'PGRST116') { // PGRST116 = Nenhum resultado encontrado        
         // Usando os campos corretos que existem na tabela profiles
         const profileData = {
           id: authStore.user.id,
@@ -92,11 +59,7 @@ const ensureUserProfile = async () => {
         
         if (insertError) {
           console.error('Erro ao criar perfil do usuário:', insertError);
-        } else {
-          console.log('Perfil criado com sucesso');
         }
-      } else {
-        console.log('Perfil já existe para o usuário:', authStore.user.id);
       }
     } catch (error) {
       console.error('Erro ao verificar/criar perfil:', error);

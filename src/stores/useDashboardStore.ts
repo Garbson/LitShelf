@@ -97,7 +97,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     if (!authStore.user?.id) return 0
 
     try {
-      console.log('Buscando contagem de citações para o usuário:', authStore.user.id)
 
       // Buscar citações do Supabase da tabela quotes (não phases)
       const { count, error } = await supabase
@@ -107,14 +106,12 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
       if (error) {
         if (error.code === '42P01') {
-          // Tabela não existe
-          console.log('A tabela "quotes" não foi encontrada, usando valor padrão')
+
           return 0
         }
         throw error
       }
 
-      console.log('Contagem de citações encontrada:', count)
       quotesCount.value = count || 0
       return count
     } catch (error) {
@@ -142,7 +139,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     let totalTime = 0
     let completedBooks = 0
 
-    console.log('Calculando tempo médio de leitura com', processedBooks.length, 'livros')
 
     processedBooks.forEach((book) => {
       // Se o livro não está marcado como lido (status 1), não consideramos
@@ -156,7 +152,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
         if (end >= start) {
           // Verificar se as datas são válidas (fim > início)
           const daysElapsed = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)))
-          console.log(`Livro ${book.title}: ${daysElapsed} dias (formato ISO)`)
 
           totalTime += daysElapsed
           completedBooks++
@@ -188,7 +183,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
             // Garantir que não estamos calculando valores negativos
             // e usar no mínimo 1 dia para evitar divisão por zero
             const daysElapsed = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)))
-            console.log(`Livro ${book.title}: ${daysElapsed} dias (formato DD/MM/YYYY)`)
 
             totalTime += daysElapsed
             completedBooks++
@@ -199,7 +193,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       }
     })
 
-    console.log(`Total: ${totalTime} dias para ${completedBooks} livros`)
+
 
     // Se não temos livros concluídos com datas válidas
     if (completedBooks === 0 || totalTime === 0) {
@@ -234,9 +228,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
     // Se o status não for um número, converter para número
     if (book.status !== undefined && book.status !== null && typeof book.status !== 'number') {
-      console.log(
-        `[DashboardStore] Convertendo status do livro ${book.title} de ${typeof book.status} para number`,
-      )
+
       book.status = Number(book.status)
     }
 
@@ -275,7 +267,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
         const parsedGoal = JSON.parse(savedGoal)
         readingGoal.value = parsedGoal
         readingGoalLoaded.value = true
-        console.log('Meta de leitura carregada do localStorage:', parsedGoal)
         return
       }
 
@@ -295,7 +286,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
           readingGoal.value = newGoal
           localStorage.setItem('readingGoal', JSON.stringify(newGoal))
           readingGoalLoaded.value = true
-          console.log('Meta de leitura carregada do perfil:', newGoal)
           return
         }
       }
@@ -306,7 +296,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
       readingGoal.value = defaultGoal
       localStorage.setItem('readingGoal', JSON.stringify(defaultGoal))
       readingGoalLoaded.value = true
-      console.log('Meta de leitura padrão definida:', defaultGoal)
     } catch (error) {
       console.error('Erro ao carregar meta de leitura:', error)
       // Definir um valor padrão em caso de erro
@@ -331,8 +320,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
         if (userUpdateError) {
           console.warn('Erro ao atualizar meta no perfil:', userUpdateError)
-        } else {
-          console.log('Meta de leitura atualizada no perfil com sucesso')
         }
       }
 
@@ -345,19 +332,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // Método de carregamento de dados para o dashboard
   const loadDashboardData = async (loadId) => {
-    console.log(`[DashboardStore] Iniciando carregamento (ID: ${loadId})`)
     isLoading.value = true
     lastLoadId.value = loadId
 
     try {
       if (!bookshelfStore.books || bookshelfStore.books.length === 0) {
-        console.log('[DashboardStore] Sem livros para processar, tentando buscar...')
         await bookshelfStore.fetchBooks()
       }
 
       // Verificar se outro carregamento foi iniciado
       if (window.DASHBOARD_LOAD_ID !== undefined && window.DASHBOARD_LOAD_ID !== loadId) {
-        console.log(`[DashboardStore] Carregamento ${loadId} cancelado após fetchBooks`)
         return
       }
 
@@ -366,12 +350,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
       // Verificar novamente se outro carregamento foi iniciado
       if (window.DASHBOARD_LOAD_ID !== undefined && window.DASHBOARD_LOAD_ID !== loadId) {
-        console.log(`[DashboardStore] Carregamento ${loadId} cancelado após loadReadingGoal`)
         return
       }
 
-      // Processar livros para garantir consistência de status
-      console.log(`[DashboardStore] Processando ${bookshelfStore.books.length} livros`)
       const processedBooks = processBooks(bookshelfStore.books)
 
       // Contar os livros por status
@@ -383,22 +364,12 @@ export const useDashboardStore = defineStore('dashboard', () => {
       // Identificar o livro atual
       currentlyReading.value = processedBooks.find(isReading) || null
 
-      if (currentlyReading.value) {
-        console.log(`[DashboardStore] Livro atual identificado: ${currentlyReading.value.title}`)
-      } else {
-        console.log('[DashboardStore] Nenhum livro sendo lido no momento')
-      }
-
       // Identificar o último livro lido (ordenado por data de conclusão, decrescente)
       const completedBooks = processedBooks
         .filter((book) => isCompleted(book) && book.finished_reading_at)
         .sort((a, b) => new Date(b.finished_reading_at) - new Date(a.finished_reading_at))
 
       lastBookRead.value = completedBooks.length > 0 ? completedBooks[0] : null
-
-      if (lastBookRead.value) {
-        console.log(`[DashboardStore] Último livro lido: ${lastBookRead.value.title}`)
-      }
 
       // Calcular distribuição de gêneros
       calculateGenresDistribution(processedBooks)
@@ -408,12 +379,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
       // Contar citações favoritas
       await fetchQuotesCount()
-
-      console.log('[DashboardStore] Carregamento de dados do dashboard concluído com sucesso')
     } catch (err) {
       console.error('[DashboardStore] Erro ao carregar dados:', err)
     } finally {
-      console.log(`[DashboardStore] Carregamento ${loadId} finalizado`)
       isLoading.value = false
     }
   }

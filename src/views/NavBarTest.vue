@@ -274,8 +274,6 @@ const isActiveRoute = (path: string) => {
 
 // Função para navegar para a estante pessoal com reset completo do estado
 const goToBookshelf = async () => {
-  console.log('Navegando para minha estante via menu...')
-
   // Limpar o estado do store para garantir que não há mais referência aos livros do amigo
   bookshelfStore.setViewingFriend(null)
 

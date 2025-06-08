@@ -114,7 +114,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
             acceptedAt: rec.acceptedAt ? new Date(rec.acceptedAt) : null,
             rejectedAt: rec.rejectedAt ? new Date(rec.rejectedAt) : null
           }));
-          console.log("Recomendações carregadas do localStorage:", receivedRecommendations.value.length);
           return;
         }
       }
@@ -144,8 +143,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         .limit(1);
       
       if (testError) {
-        // Se a view não existir, tentamos a tabela regular
-        console.log('Erro ao buscar na view recommendations_view, tentando tabela regular');
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('recommendations')
           .select('id')
@@ -153,7 +150,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
           
         if (fallbackError) {
           if (fallbackError.code === '42P01') { // Tabela não existe
-            console.log('A tabela "recommendations" não existe, usando dados mockados');
             useLocalStorage.value = true;
             _createMockRecommendations();
             return;
@@ -178,13 +174,10 @@ export const useRecommendationStore = defineStore('recommendation', () => {
       
       // Se não tiver dados, inicializa um array vazio em vez de mostrar erro
       if (!data || data.length === 0) {
-        console.log('Nenhuma recomendação recebida encontrada');
         receivedRecommendations.value = [];
         return;
       }
-      
-      console.log('Recomendações recebidas encontradas na view:', data.length);
-      
+          
       // Mapear os dados da view para o formato esperado no app
       receivedRecommendations.value = data.map(rec => {
         return {
@@ -212,10 +205,7 @@ export const useRecommendationStore = defineStore('recommendation', () => {
       
       // Salvar no localStorage como backup
       localStorage.setItem('receivedRecommendations', 
-        JSON.stringify(receivedRecommendations.value));
-
-      console.log('Recomendações processadas com sucesso da view:', receivedRecommendations.value.length);
-      
+        JSON.stringify(receivedRecommendations.value));    
     } catch (err) {
       console.error('Erro ao buscar recomendações recebidas:', err);
       error.value = 'Não foi possível carregar suas recomendações de livros.';
@@ -249,15 +239,10 @@ export const useRecommendationStore = defineStore('recommendation', () => {
     
     // Se não tiver dados, inicializa um array vazio em vez de mostrar erro
     if (!data || data.length === 0) {
-      console.log('Nenhuma recomendação recebida encontrada');
       receivedRecommendations.value = [];
       return;
     }
     
-    console.log('Recomendações recebidas encontradas:', data.length);
-    
-    // Se conseguimos os dados, mas não temos as informações relacionadas
-    // precisamos buscar os detalhes do usuário e do livro separadamente
     const userIds = [...new Set(data.map(rec => rec.from_user_id))];
     const bookIds = [...new Set(data.map(rec => rec.book_id))];
     
@@ -324,7 +309,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
     localStorage.setItem('receivedRecommendations', 
       JSON.stringify(receivedRecommendations.value));
 
-    console.log('Recomendações recebidas processadas:', receivedRecommendations.value.length);
   }
   
   async function fetchRecommendations() {
@@ -348,7 +332,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
             acceptedAt: rec.acceptedAt ? new Date(rec.acceptedAt) : null,
             rejectedAt: rec.rejectedAt ? new Date(rec.rejectedAt) : null
           }));
-          console.log("Recomendações enviadas carregadas do localStorage:", sentRecommendations.value.length);
         } else {
           // Se não houver dados no localStorage, criar mockados
           _createMockSentRecommendations();
@@ -382,12 +365,10 @@ export const useRecommendationStore = defineStore('recommendation', () => {
       
       // Se não tiver dados, inicializa um array vazio em vez de mostrar erro
       if (!data || data.length === 0) {
-        console.log('Nenhuma recomendação enviada encontrada');
         sentRecommendations.value = [];
         return;
       }
       
-      console.log('Recomendações enviadas encontradas:', data.length);
       
       // Buscar perfis para os destinatários
       const recipientIds = [...new Set(data.map(rec => rec.to_user_id))];
@@ -452,7 +433,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         };
       });
       
-      console.log('Recomendações enviadas processadas:', sentRecommendations.value.length);
       
       // Salvar no localStorage para próximos acessos
       localStorage.setItem('sentRecommendations', 
@@ -481,7 +461,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         acceptedAt: rec.acceptedAt ? new Date(rec.acceptedAt) : null,
         rejectedAt: rec.rejectedAt ? new Date(rec.rejectedAt) : null
       }));
-      console.log("Recomendações mockadas carregadas do localStorage:", receivedRecommendations.value.length);
       return;
     }
     
@@ -638,8 +617,7 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         return { success: true, count: friendIds.length };
       }
       
-      // Se não estamos usando localStorage, tentamos enviar para o Supabase
-      console.log('Tentando enviar recomendação para Supabase - Usuário atual:', authStore.userId);
+
       
       // Verificar se o livro existe na estante ou na tabela de livros
       let bookExists = bookshelfStore.books.some(b => b.id === bookId);
@@ -665,8 +643,7 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         console.error('Erro ao verificar sessão:', sessionError);
         throw new Error('Erro de autenticação');
       }
-      
-      console.log('Sessão verificada:', sessionData.session?.user.id);
+
       
       // Criar recomendações para cada amigo usando a estrutura correta da tabela
       const recsToInsert = friendIds.map(friendId => ({
@@ -677,7 +654,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         status: 'pending'
       }));
       
-      console.log('Tentando inserir recomendações:', recsToInsert);
       
       // Usar .returns('minimal') para reduzir overhead
       const { data, error: insertError } = await supabase
@@ -697,7 +673,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         throw insertError;
       }
       
-      console.log('Recomendações enviadas com sucesso:', data);
       
       // Recarregar as recomendações enviadas
       await fetchRecommendations();
@@ -744,8 +719,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
       localStorage.setItem('receivedRecommendations', 
         JSON.stringify(receivedRecommendations.value));
       
-      // Tentar adicionar o livro à estante (simulado)
-      console.log(`Livro ${recommendation.bookId} adicionado à estante via recomendação`);
       
       return { success: true };
     }
@@ -755,7 +728,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
     error.value = null;
     
     try {
-      console.log('Aceitando recomendação:', recommendationId);
       
       // Buscar a recomendação completa com os dados do livro através da view
       const { data: recommendation, error: fetchError } = await supabase
@@ -788,7 +760,6 @@ export const useRecommendationStore = defineStore('recommendation', () => {
         status: 0, // Por padrão, começa como "Quero Ler"
       };
       
-      console.log('Adicionando livro à estante:', bookData);
       
       // Adicionar o livro à estante usando a mesma função que o componente adcionarLivro.vue usa
       await bookshelfStore.addBook(bookData);

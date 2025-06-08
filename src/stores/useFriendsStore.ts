@@ -192,7 +192,6 @@ export const useFriendsStore = defineStore('friends', () => {
         }
       }
 
-      console.log('Amigos processados:', processedFriends);
       friends.value = processedFriends;
 
     } catch (err) {
@@ -247,7 +246,6 @@ export const useFriendsStore = defineStore('friends', () => {
     if (!authStore.userId) return;
 
     try {
-      console.log('Buscando solicitações recebidas e enviadas. ID do usuário atual:', authStore.userId);
       
       // Buscar todas as solicitações relacionadas ao usuário (recebidas E enviadas)
       const { data: allRequests, error: requestsError } = await supabase
@@ -258,8 +256,6 @@ export const useFriendsStore = defineStore('friends', () => {
 
       if (requestsError) throw requestsError;
 
-      console.log('Total de solicitações encontradas:', allRequests?.length || 0);
-      console.log('Solicitações encontradas:', allRequests);
       
       // Processar solicitações recebidas (onde requested_by_user_id != authStore.userId)
       const processedReceivedRequests: FriendRequest[] = [];
@@ -275,15 +271,7 @@ export const useFriendsStore = defineStore('friends', () => {
             ? request.user_id_2 
             : request.user_id_1;
           
-          console.log('Processando solicitação:', {
-            user_id_1: request.user_id_1,
-            user_id_2: request.user_id_2,
-            requested_by: request.requested_by_user_id,
-            currentUserId: authStore.userId,
-            status: request.status,
-            isSentByCurrentUser: isRequestFromCurrentUser,
-            otherUser: otherUserId
-          });
+
           
           // Buscar dados do outro usuário usando available_users ao invés de profiles
           const { data: userData, error: userError } = await supabase
@@ -312,17 +300,13 @@ export const useFriendsStore = defineStore('friends', () => {
 
           // Adicionar à lista apropriada
           if (isRequestFromCurrentUser) {
-            console.log('Adicionando à lista de solicitações ENVIADAS:', friendRequest);
             processedSentRequests.push(friendRequest);
           } else {
-            console.log('Adicionando à lista de solicitações RECEBIDAS:', friendRequest);
             processedReceivedRequests.push(friendRequest);
           }
         }
       }
 
-      console.log('Solicitações recebidas encontradas:', processedReceivedRequests.length);
-      console.log('Solicitações enviadas encontradas:', processedSentRequests.length);
       
       // Atualizar as referências
       receivedRequests.value = processedReceivedRequests;
@@ -488,7 +472,7 @@ export const useFriendsStore = defineStore('friends', () => {
         secondUserId = authStore.userId;
       }
 
-      console.log("Criando amizade com IDs ordenados:", firstUserId, secondUserId);
+
       
       // Criar nova solicitação de amizade
       const { data: newRequest, error: insertError } = await supabase
@@ -565,7 +549,6 @@ export const useFriendsStore = defineStore('friends', () => {
     error.value = null;
     
     try {
-      console.log("Tentando aceitar solicitação com ID composto:", requestId);
       
       // Extrair os IDs de usuário do requestId composto
       // O formato do ID deve ser um UUID completo, não apenas parte dele
@@ -583,7 +566,6 @@ export const useFriendsStore = defineStore('friends', () => {
       const user_id_1 = matches[0];
       const user_id_2 = matches[1];
       
-      console.log("IDs extraídos:", user_id_1, user_id_2);
       
       // Atualizar o status para aceito
       const { data: updateData, error: updateError } = await supabase
@@ -597,7 +579,6 @@ export const useFriendsStore = defineStore('friends', () => {
         throw updateError;
       }
       
-      console.log("Resultado da atualização:", updateData);
       
       // Atualizar listas locais
       await fetchFriendRequests();
@@ -625,7 +606,6 @@ export const useFriendsStore = defineStore('friends', () => {
     error.value = null;
     
     try {
-      console.log("Tentando rejeitar solicitação com ID composto:", requestId);
       
       // Extrair os IDs de usuário do requestId composto usando regex
       const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
@@ -639,7 +619,6 @@ export const useFriendsStore = defineStore('friends', () => {
       const user_id_1 = matches[0];
       const user_id_2 = matches[1];
       
-      console.log("IDs extraídos para rejeição:", user_id_1, user_id_2);
       
       // Atualizar o status para rejeitado
       const { error: updateError } = await supabase
@@ -674,7 +653,6 @@ export const useFriendsStore = defineStore('friends', () => {
     error.value = null;
     
     try {
-      console.log("Tentando cancelar solicitação com ID composto:", requestId);
       
       // Extrair os IDs de usuário do requestId composto usando regex
       const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
@@ -687,8 +665,7 @@ export const useFriendsStore = defineStore('friends', () => {
       
       const user_id_1 = matches[0];
       const user_id_2 = matches[1];
-      
-      console.log("IDs extraídos para cancelamento:", user_id_1, user_id_2);
+
       
       // Deletar o registro de amizade
       const { error: deleteError } = await supabase
@@ -755,7 +732,7 @@ export const useFriendsStore = defineStore('friends', () => {
     }
 
     try {
-      console.log("Buscando usuários com query:", query, "ID do usuário atual:", authStore.userId);
+
       
       // Verificar se estamos buscando por um UUID
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -784,11 +761,9 @@ export const useFriendsStore = defineStore('friends', () => {
         throw searchError;
       }
 
-      console.log("Usuários encontrados:", data?.length || 0);
       
       // Verificar o status de amizade para cada usuário encontrado
       const usersWithStatus = await Promise.all((data || []).map(async user => {
-        console.log("Processando usuário:", user.id, user.name);
         
         // Verificar se já existe uma amizade entre os usuários
         const { data: friendshipData, error: friendshipError } = await supabase
@@ -797,17 +772,13 @@ export const useFriendsStore = defineStore('friends', () => {
           .or(`and(user_id_1.eq.${authStore.userId},user_id_2.eq.${user.id}),and(user_id_1.eq.${user.id},user_id_2.eq.${authStore.userId})`)
           .single();
 
-        if (friendshipError && friendshipError.code !== 'PGRST116') {
-          console.log("Não há amizade existente com", user.id);
-        }
-
+  
         let friendshipStatus = null;
         let friendshipId = null;
         let isSender = false;
         let requestedByUserId = null;
 
         if (friendshipData) {
-          console.log("Amizade encontrada:", friendshipData);
           friendshipStatus = friendshipData.status;
           requestedByUserId = friendshipData.requested_by_user_id;
           // Criar um ID composto já que não existe uma coluna 'id'
@@ -843,7 +814,6 @@ export const useFriendsStore = defineStore('friends', () => {
     }
 
     try {
-      console.log("Buscando todos os usuários disponíveis, ID atual:", authStore.userId);
       
       // Buscar todos os perfis exceto o próprio usuário
       const { data, error: searchError } = await supabase
@@ -855,16 +825,13 @@ export const useFriendsStore = defineStore('friends', () => {
         throw searchError;
       }
       
-      console.log("Todos os perfis encontrados:", data);
       
       // Filtrar apenas usuários diferentes do atual
       const filteredUsers = data?.filter(user => user.id !== authStore.userId) || [];
-      console.log("Usuários filtrados (excluindo o próprio):", filteredUsers);
       
       // Se não encontrar nenhum outro usuário, adicionar um usuário fictício para testes
       let usersToProcess = filteredUsers;
       if (filteredUsers.length === 0) {
-        console.log("Nenhum outro usuário encontrado, adicionando um usuário fictício para teste");
         usersToProcess = [{
           id: "58050c52-d795-4389-908a-2cabe85dc7e2", // ID fixo para testes
           name: "Usuário Exemplo",
@@ -874,7 +841,6 @@ export const useFriendsStore = defineStore('friends', () => {
       
       // Verificar o status de amizade para cada usuário
       const usersWithStatus = await Promise.all(usersToProcess.map(async user => {
-        console.log("Processando usuário:", user.id, user.name);
         
         // Verificar se já existe uma amizade entre os usuários
         const { data: friendshipData, error: friendshipError } = await supabase
@@ -889,7 +855,6 @@ export const useFriendsStore = defineStore('friends', () => {
         let requestedByUserId = null;
 
         if (friendshipData && !friendshipError) {
-          console.log("Amizade encontrada:", friendshipData);
           friendshipStatus = friendshipData.status;
           requestedByUserId = friendshipData.requested_by_user_id;
           // Criar um ID composto já que não existe uma coluna 'id'
@@ -909,15 +874,13 @@ export const useFriendsStore = defineStore('friends', () => {
         };
       }));
       
-      console.log("Resultados finais com status de amizade:", usersWithStatus);
       return { users: usersWithStatus };
 
     } catch (err) {
       console.error('Erro ao buscar todos os usuários:', err);
       error.value = 'Não foi possível carregar a lista de usuários.';
       
-      // Retornar um usuário de exemplo mesmo em caso de erro
-      console.log("Retornando usuário de exemplo devido ao erro");
+
       return { 
         users: [{
           id: "58050c52-d795-4389-908a-2cabe85dc7e2", // ID fixo para testes
@@ -940,7 +903,6 @@ export const useFriendsStore = defineStore('friends', () => {
     }
 
     try {
-      console.log("Buscando todos os usuários disponíveis (exceto o atual)");
       
       // Buscar todos os perfis exceto o próprio usuário, usando available_users
       const { data, error: searchError } = await supabase
@@ -954,11 +916,9 @@ export const useFriendsStore = defineStore('friends', () => {
         throw searchError;
       }
       
-      console.log("Total de usuários disponíveis encontrados:", data?.length || 0);
       
       // Verificar o status de amizade para cada usuário
       const usersWithStatus = await Promise.all((data || []).map(async user => {
-        console.log("Processando usuário:", user.id, user.name);
         
         // Verificar se já existe uma amizade entre os usuários
         const { data: friendshipData, error: friendshipError } = await supabase
@@ -973,7 +933,6 @@ export const useFriendsStore = defineStore('friends', () => {
         let requestedByUserId = null;
 
         if (friendshipData && !friendshipError) {
-          console.log("Amizade encontrada:", friendshipData);
           friendshipStatus = friendshipData.status;
           requestedByUserId = friendshipData.requested_by_user_id;
           // Criar um ID composto já que não existe uma coluna 'id'
@@ -992,8 +951,6 @@ export const useFriendsStore = defineStore('friends', () => {
           isSender
         };
       }));
-      
-      console.log("Resultados finais:", usersWithStatus.length);
       return { users: usersWithStatus };
 
     } catch (err) {
@@ -1005,19 +962,14 @@ export const useFriendsStore = defineStore('friends', () => {
 
   // Busca diretamente todos os usuários da tabela auth.users
   async function fetchAuthUsers() {
-    try {
-      console.log("Tentando buscar todos os usuários da tabela auth.users");
-      
+    try {     
       // Tentativa direta via API de admin
       let authUsers = null;
       try {
         const { data, error } = await supabase.auth.admin.listUsers();
         if (!error) {
           authUsers = data;
-          console.log("Usuários encontrados via auth.admin.listUsers:", data);
-        } else {
-          console.error("Erro ao usar auth.admin.listUsers:", error);
-        }
+        } 
       } catch (err) {
         console.error("Exceção ao chamar auth.admin.listUsers:", err);
       }
@@ -1027,10 +979,7 @@ export const useFriendsStore = defineStore('friends', () => {
         // Esta abordagem usa uma função do Supabase que deve existir no seu projeto
         const { data, error } = await supabase.rpc('get_all_users');
         if (!error) {
-          console.log("Usuários encontrados via RPC get_all_users:", data);
           return { users: data };
-        } else {
-          console.error("Erro ao usar RPC get_all_users:", error);
         }
       } catch (err) {
         console.error("Exceção ao chamar RPC get_all_users:", err);
@@ -1044,11 +993,8 @@ export const useFriendsStore = defineStore('friends', () => {
           .limit(20);
           
         if (!error) {
-          console.log("Usuários encontrados via consulta direta à tabela users:", data);
           return { users: data };
-        } else {
-          console.error("Erro ao consultar diretamente a tabela users:", error);
-        }
+        } 
       } catch (err) {
         console.error("Exceção ao consultar diretamente a tabela users:", err);
       }
@@ -1058,7 +1004,6 @@ export const useFriendsStore = defineStore('friends', () => {
         return { users: authUsers.users || [] };
       }
       
-      console.log("Nenhum método de busca de usuários funcionou");
       return { users: [] };
 
     } catch (err) {

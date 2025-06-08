@@ -71,10 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Por padrão, Supabase pode exigir confirmação de email.
     // O usuário não estará logado imediatamente após o signUp se a confirmação estiver ativa.
     // Você pode informar o usuário para verificar o email.
-    if (data.user && data.user.identities?.length === 0) {
-       console.log("Registro bem-sucedido! Verifique seu email para confirmação.");
-       // Mostrar mensagem para o usuário verificar o email
-    } else if (data.user) {
+ if (data.user) {
        // Se a confirmação não for necessária ou já estiver confirmada
        user.value = data.user;
        
@@ -104,8 +101,6 @@ export const useAuthStore = defineStore('auth', () => {
   // Função para ser chamada quando o estado de autenticação muda
   const setupAuthListener = () => {
     supabase.auth.onAuthStateChange((event, session) => {
-      // console.log('Auth Event:', event); // Para depuração
-      // console.log('Auth Session:', session); // Para depuração
       user.value = session?.user ?? null;
       loading.value = false; // Marca que a verificação inicial terminou
     });
@@ -135,7 +130,7 @@ export const useAuthStore = defineStore('auth', () => {
       
       // Se não houver perfil existente, criar um novo
       if (fetchError && fetchError.code === 'PGRST116') { // PGRST116 = Nenhum resultado encontrado
-        console.log('Criando novo perfil para o usuário:', authUser.id);
+
         
         // Usando os campos corretos que existem na tabela profiles
         const profileData = {
@@ -147,7 +142,6 @@ export const useAuthStore = defineStore('auth', () => {
           updated_at: new Date().toISOString()
         };
         
-        console.log('Tentando criar perfil com dados:', profileData);
         
         const { error: insertError } = await supabase
           .from('profiles')
@@ -155,8 +149,6 @@ export const useAuthStore = defineStore('auth', () => {
         
         if (insertError) {
           console.error('Erro ao criar perfil do usuário:', insertError);
-        } else {
-          console.log('Perfil criado com sucesso');
         }
       }
     } catch (error) {
