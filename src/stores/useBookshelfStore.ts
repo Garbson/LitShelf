@@ -880,13 +880,15 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
     }
   }
 
+  // Em stores/useBookshelfStore.ts
+
   // Generic Update Book Method
   const updateBook = async (bookId: string, updateData: any) => {
     error.value = null
     if (!userId.value) return
 
     try {
-      // Atualizar no Supabase
+      // Atualizar no Supabase (esta parte já estava correta)
       const { error: supabaseError } = await supabase
         .from('books')
         .update(updateData)
@@ -895,21 +897,40 @@ export const useBookshelfStore = defineStore('bookshelf', () => {
 
       if (supabaseError) throw supabaseError
 
-      // Atualizar estado local
+      // --- LÓGICA DE ATUALIZAÇÃO LOCAL CORRIGIDA ---
       const bookIndex = books.value.findIndex((book) => book.id === bookId)
       if (bookIndex !== -1) {
-        books.value[bookIndex] = { ...books.value[bookIndex], ...updateData }
-      }
+        // Mescla o livro antigo com os novos dados para não perder nenhuma propriedade
+        const updatedBook = { ...books.value[bookIndex], ...updateData }
 
-      // Atualizar o livro selecionado se for o mesmo
-      if (selectedBook.value?.id === bookId) {
-        selectedBook.value = { ...selectedBook.value, ...updateData }
+        // Formata as datas para exibição, se elas foram atualizadas
+        if (updateData.started_reading_at) {
+          updatedBook.dataInicioLeitura = formatDateForStorage(updateData.started_reading_at)
+        }
+        if (updateData.finished_reading_at) {
+          updatedBook.dataFinalLeitura = formatDateForStorage(updateData.finished_reading_at)
+        }
+
+        // Substitui o livro na lista para garantir a reatividade
+        books.value.splice(bookIndex, 1, updatedBook)
+
+        // Atualiza o livro selecionado se for o mesmo
+        if (selectedBook.value?.id === bookId) {
+          selectedBook.value = updatedBook
+        }
       }
     } catch (err: any) {
       console.error('Erro ao atualizar livro:', err)
       error.value = 'Erro ao atualizar livro.'
       throw err
     }
+  }
+
+  // Adicione esta função auxiliar dentro do seu defineStore, se ela não existir
+  const formatDateForStorage = (date: Date | string | null | undefined): string => {
+    if (!date) return ''
+    const dateObj = new Date(date)
+    return `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`
   }
 
   // Fetch Friend's Quotes

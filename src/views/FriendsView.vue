@@ -362,14 +362,7 @@
                   Estante de {{ selectedFriend.name || selectedFriend.email.split('@')[0] }}
                 </span>
               </div>
-              <v-btn
-                icon="mdi-close"
-                variant="text"
-                @click="
-                  selectedFriend = null
-                  friendBooks = []
-                "
-              ></v-btn>
+              <v-btn icon="mdi-close" variant="text" @click="closeFriendBookshelf"></v-btn>
             </v-card-title>
 
             <v-card-text>
@@ -753,6 +746,11 @@ const removeFriendConfirmed = async () => {
     showNotification('Erro ao remover amigo', 'error')
     confirmRemoveFriend.value = false
   }
+}
+
+const closeFriendBookshelf = () => {
+  selectedFriend.value = null
+  friendBooks.value = []
 }
 
 // Selecionar um amigo
