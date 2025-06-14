@@ -75,49 +75,84 @@
           <v-icon size="20">{{ isDarkMode ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
         </v-btn>
 
-        <!-- Menu do usuário (desktop) -->
+        <!-- Menu do usuário (desktop) - VERSÃO MELHORADA -->
         <div class="d-none d-md-flex">
-          <v-menu location="bottom end" transition="slide-y-transition">
+          <v-menu location="bottom end" offset="8" transition="slide-y-transition">
             <template #activator="{ props }">
-              <v-btn
-                v-bind="props"
-                variant="text"
-                color="accent"
-                class="user-button"
-                :class="{ 'animate-pulse': hasNotifications }"
-              >
-                <v-avatar size="32" class="mr-2" color="primary">
-                  <v-img
-                    v-if="userProfilePicture"
-                    :src="userProfilePicture"
-                    alt="Avatar do usuário"
-                  ></v-img>
-                  <v-icon v-else color="white" size="18">mdi-account</v-icon>
-                </v-avatar>
-                <span class="username-text d-none d-lg-inline">{{ userDisplayName }}</span>
-                <v-icon class="ml-1" size="18">mdi-chevron-down</v-icon>
-                <v-badge
-                  v-if="hasNotifications"
-                  color="error"
-                  content="2"
-                  dot
-                  floating
-                  offset-x="-8"
-                  offset-y="8"
-                ></v-badge>
-              </v-btn>
+              <div class="user-profile-container">
+                <v-btn
+                  v-bind="props"
+                  variant="text"
+                  class="user-profile-btn"
+                  :class="{ 'has-notifications': hasNotifications }"
+                >
+                  <!-- Avatar com melhor styling -->
+                  <v-avatar
+                    size="36"
+                    class="user-avatar"
+                    :class="{ 'avatar-with-status': hasNotifications }"
+                  >
+                    <v-img
+                      v-if="userProfilePicture"
+                      :src="userProfilePicture"
+                      alt="Avatar do usuário"
+                      class="avatar-image"
+                    ></v-img>
+                    <v-icon v-else color="white" size="20">mdi-account</v-icon>
+                  </v-avatar>
+
+                  <!-- Informações do usuário (visível em telas maiores) -->
+                  <div class="user-info d-none d-xl-flex">
+                    <div class="user-details">
+                      <span class="user-name">{{ userDisplayName }}</span>
+                      <span class="user-status">Online</span>
+                    </div>
+                    <v-icon class="chevron-icon" size="16">mdi-chevron-down</v-icon>
+                  </div>
+                </v-btn>
+              </div>
             </template>
 
-            <v-card min-width="200" class="menu-card">
-              <v-list density="compact">
-                <v-list-item prepend-icon="mdi-account" @click="goToProfile">
+            <!-- Menu dropdown melhorado -->
+            <v-card min-width="200" max-width="220" class="user-menu-card elevation-8">
+              <!-- Header do menu com avatar centralizado -->
+              <div class="menu-header">
+                <div class="menu-header-content">
+                  <v-avatar size="80" color="primary" class="menu-avatar">
+                    <v-img
+                      v-if="userProfilePicture"
+                      :src="userProfilePicture"
+                      alt="Avatar do usuário"
+                    ></v-img>
+                    <v-icon v-else color="white" size="40">mdi-account</v-icon>
+                  </v-avatar>
+                </div>
+              </div>
+
+              <v-divider></v-divider>
+
+              <!-- Lista de ações -->
+              <v-list density="comfortable" class="menu-list">
+                <v-list-item
+                  prepend-icon="mdi-account-circle"
+                  @click="goToProfile"
+                  class="menu-item"
+                >
                   <v-list-item-title>Meu Perfil</v-list-item-title>
+                  <v-list-item-subtitle>Gerenciar conta</v-list-item-subtitle>
                 </v-list-item>
 
-                <v-divider class="my-1"></v-divider>
+                <v-divider class="my-2"></v-divider>
 
-                <v-list-item prepend-icon="mdi-logout" color="error" @click="confirmLogout = true">
-                  <v-list-item-title>Sair</v-list-item-title>
+                <v-list-item
+                  prepend-icon="mdi-logout"
+                  @click="confirmLogout = true"
+                  class="menu-item logout-item"
+                >
+                  <v-list-item-title class="text-error font-weight-medium">
+                    Sair da conta
+                  </v-list-item-title>
+                  <v-list-item-subtitle>Fazer logout</v-list-item-subtitle>
                 </v-list-item>
               </v-list>
             </v-card>
@@ -138,7 +173,7 @@
       </div>
     </div>
 
-    <!-- Menu móvel (visível quando aberto) -->
+    <!-- Menu móvel (mantido igual) -->
     <v-expand-transition>
       <div v-if="mobileMenuOpen" class="mobile-menu d-md-none">
         <v-list density="comfortable">
@@ -489,7 +524,7 @@ const goToSettings = () => {
 
 .navbar-menu-right {
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 1rem;
   flex-shrink: 0;
 }
 
@@ -525,57 +560,176 @@ const goToSettings = () => {
   border-radius: 3px;
 }
 
-.user-button {
-  border-radius: 20px;
-  padding: 0.25rem 0.75rem;
+/* ===== ESTILOS MELHORADOS PARA O BOTÃO DE PERFIL ===== */
+
+.user-profile-container {
+  position: relative;
+}
+
+.user-profile-btn {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
   text-transform: none;
-  transition: all 0.3s ease;
-  max-width: 200px;
+  backdrop-filter: blur(10px);
+  min-height: 48px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.user-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+.user-profile-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-.username-text {
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100px;
-}
-
-.menu-card {
-  border-radius: var(--border-radius-md);
-  overflow: hidden;
-}
-
-.theme-toggle-btn {
-  margin-right: 4px;
-}
-
-.animate-pulse {
-  animation: pulse-subtle 2s infinite;
-}
-
-@keyframes pulse-subtle {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
+@keyframes notification-pulse {
+  0%,
   100% {
     transform: scale(1);
   }
+  50% {
+    transform: scale(1.02);
+  }
 }
 
-.logout-dialog {
-  border-radius: var(--border-radius-lg);
+.user-avatar {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.user-avatar.avatar-with-status {
+  border-color: var(--v-accent-base);
+}
+
+.avatar-image {
+  border-radius: 50%;
+}
+
+.user-info {
+  margin-left: 12px;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  max-width: 120px;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Menu móvel */
+.user-status {
+  font-size: 0.75rem;
+  color: var(--v-accent-base);
+  font-weight: 500;
+}
+
+.chevron-icon {
+  color: rgba(255, 255, 255, 0.7);
+  transition: transform 0.2s ease;
+}
+
+.user-profile-btn:hover .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.notification-badge {
+  z-index: 1;
+}
+
+/* ===== ESTILOS MELHORADOS PARA O MENU DROPDOWN ===== */
+
+.user-menu-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+}
+
+.menu-header {
+  background: linear-gradient(135deg, var(--v-primary-base), var(--v-primary-darken-1));
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.menu-header-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.menu-avatar {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.menu-list {
+  padding: 8px 0;
+}
+
+.menu-item {
+  padding: 12px 20px;
+  border-radius: 0;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.menu-item:hover {
+  background: linear-gradient(90deg, rgba(255, 204, 128, 0.1), rgba(255, 204, 128, 0.05));
+}
+
+.menu-item:hover::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--v-accent-base);
+}
+
+.menu-item.has-badge .v-list-item__prepend {
+  position: relative;
+}
+
+.logout-item:hover {
+  background: linear-gradient(90deg, rgba(244, 67, 54, 0.1), rgba(244, 67, 54, 0.05));
+}
+
+.logout-item:hover::before {
+  background: #f44336;
+}
+
+.theme-toggle-btn {
+  margin-right: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Menu móvel mantido igual */
 .mobile-menu {
   background-color: var(--v-primary-base);
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
@@ -613,6 +767,11 @@ const goToSettings = () => {
   background-color: rgba(244, 67, 54, 0.1);
 }
 
+.logout-dialog {
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+
 /* Responsividade */
 @media (max-width: 1280px) {
   .navbar-menu-center {
@@ -620,13 +779,36 @@ const goToSettings = () => {
   }
 }
 
-@media (max-width: 960px) {
-  .username-text {
+@media (max-width: 1200px) {
+  .navbar-menu-right {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .user-info {
     display: none !important;
   }
 
-  .user-button {
-    padding: 0.25rem 0.5rem;
+  .user-profile-btn {
+    padding: 6px;
+    min-width: 48px;
+    border-radius: 50%;
+  }
+}
+
+@media (max-width: 960px) {
+  .user-details {
+    display: none !important;
+  }
+
+  .user-profile-btn {
+    padding: 6px;
+    min-width: 44px;
+  }
+
+  .navbar-menu-right {
+    gap: 0.5rem;
   }
 }
 
@@ -646,7 +828,7 @@ const goToSettings = () => {
   }
 
   .theme-toggle-btn {
-    margin-right: 2px;
+    margin-right: 4px;
   }
 
   .mobile-menu {
@@ -660,6 +842,16 @@ const goToSettings = () => {
 
   .user-mobile-item {
     padding: 12px 16px;
+  }
+
+  .user-profile-btn {
+    min-width: 40px;
+    padding: 4px;
+  }
+
+  .user-avatar {
+    width: 32px !important;
+    height: 32px !important;
   }
 }
 
@@ -685,12 +877,18 @@ const goToSettings = () => {
     transform: scale(0.98);
   }
 
-  .user-button:active {
+  .user-profile-btn:active {
     background-color: rgba(255, 255, 255, 0.15);
+    transform: scale(0.98);
   }
 
   .mobile-menu-btn:active {
     background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .theme-toggle-btn:active {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: scale(0.98);
   }
 }
 
@@ -708,6 +906,86 @@ const goToSettings = () => {
 
   .nav-mobile-item {
     min-height: 48px;
+  }
+
+  .user-profile-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Animações aprimoradas */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-menu-card {
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Estados de foco para acessibilidade */
+.user-profile-btn:focus-visible {
+  outline: 2px solid var(--v-accent-base);
+  outline-offset: 2px;
+}
+
+.theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--v-accent-base);
+  outline-offset: 2px;
+}
+
+.menu-item:focus-visible {
+  background: linear-gradient(90deg, rgba(255, 204, 128, 0.15), rgba(255, 204, 128, 0.08));
+  outline: none;
+}
+
+/* Modo escuro - ajustes específicos */
+.theme--dark .user-profile-btn {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.theme--dark .user-profile-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.theme--dark .user-menu-card {
+  background: linear-gradient(135deg, rgba(18, 18, 18, 0.95), rgba(30, 30, 30, 0.95));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.theme--dark .menu-header {
+  background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+}
+
+/* Suporte a prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .user-profile-btn,
+  .theme-toggle-btn,
+  .menu-item,
+  .user-avatar,
+  .chevron-icon {
+    transition: none;
+  }
+
+  .user-profile-btn.has-notifications {
+    animation: none;
+  }
+
+  .logo-icon {
+    animation: none;
+  }
+
+  .user-menu-card {
+    animation: none;
   }
 }
 </style>
