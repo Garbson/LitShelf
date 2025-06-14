@@ -582,7 +582,7 @@ watch(
   { deep: true },
 )
 
-// Cria o gráfico de distribuição de gêneros
+// Cria o gráfico de distribuição de gêneros com legenda responsiva
 const createGenreChart = () => {
   if (!genreChartRef.value || !hasGenreData.value) return
 
@@ -596,22 +596,71 @@ const createGenreChart = () => {
     const data = Object.values(genresData)
 
     const backgroundColors = [
-      'rgba(255, 99, 132, 0.7)',
-      'rgba(54, 162, 235, 0.7)',
-      'rgba(255, 206, 86, 0.7)',
-      'rgba(75, 192, 192, 0.7)',
-      'rgba(153, 102, 255, 0.7)',
-      'rgba(255, 159, 64, 0.7)',
-      'rgba(199, 199, 199, 0.7)',
-      'rgba(83, 102, 255, 0.7)',
-      'rgba(78, 205, 196, 0.7)',
-      'rgba(255, 99, 132, 0.7)',
+      'rgba(255, 99, 132, 0.8)',
+      'rgba(54, 162, 235, 0.8)',
+      'rgba(255, 206, 86, 0.8)',
+      'rgba(75, 192, 192, 0.8)',
+      'rgba(153, 102, 255, 0.8)',
+      'rgba(255, 159, 64, 0.8)',
+      'rgba(199, 199, 199, 0.8)',
+      'rgba(83, 102, 255, 0.8)',
+      'rgba(78, 205, 196, 0.8)',
+      'rgba(255, 107, 129, 0.8)',
+      'rgba(106, 90, 205, 0.8)',
+      'rgba(50, 205, 50, 0.8)',
     ]
 
-    const borderColors = backgroundColors.map((color) => color.replace('0.7', '1'))
+    const borderColors = backgroundColors.map((color) => color.replace('0.8', '1'))
 
-    // Detecta se é mobile
-    const isMobile = window.innerWidth <= 700
+    // Detecta diferentes breakpoints
+    const screenWidth = window.innerWidth
+    const isMobile = screenWidth <= 600
+    const isTablet = screenWidth > 600 && screenWidth <= 960
+    const isDesktop = screenWidth > 960
+
+    // Configurações responsivas baseadas no tamanho da tela
+    let legendConfig = {}
+
+    if (isMobile) {
+      legendConfig = {
+        display: false, // Remove completamente a legenda em mobile
+      }
+    } else if (isTablet) {
+      legendConfig = {
+        position: 'right',
+        align: 'start',
+        labels: {
+          font: {
+            size: 12,
+            weight: '500',
+          },
+          padding: 12,
+          usePointStyle: true,
+          pointStyle: 'rect',
+          boxWidth: 15,
+          boxHeight: 15,
+          textAlign: 'left',
+        },
+        maxWidth: 200,
+      }
+    } else {
+      legendConfig = {
+        position: 'bottom',
+        align: 'center',
+        labels: {
+          font: {
+            size: 13,
+            weight: '500',
+          },
+          padding: 15,
+          usePointStyle: true,
+          pointStyle: 'rect',
+          boxWidth: 18,
+          boxHeight: 18,
+          textAlign: 'left',
+        },
+      }
+    }
 
     genreChart = new Chart(genreChartRef.value, {
       type: 'doughnut',
@@ -622,28 +671,42 @@ const createGenreChart = () => {
             data: data,
             backgroundColor: backgroundColors.slice(0, labels.length),
             borderColor: borderColors.slice(0, labels.length),
-            borderWidth: 1,
+            borderWidth: 2,
+            hoverBorderWidth: 3,
+            hoverBorderColor: '#ffffff',
+            cutout: isMobile ? '50%' : '60%', // Buraco menor em mobile
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'nearest',
+        },
         plugins: {
-          legend: {
-            position: isMobile ? 'right' : 'bottom',
-            labels: {
-              font: {
-                size: isMobile ? 10 : 12,
-              },
-              padding: isMobile ? 8 : 20,
-              usePointStyle: isMobile,
-              boxWidth: isMobile ? 8 : 40,
-              boxHeight: isMobile ? 8 : 40,
-            },
-          },
+          legend: legendConfig,
           tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            cornerRadius: 8,
+            displayColors: true,
+            padding: 12,
+            titleFont: {
+              size: 14,
+              weight: 'bold',
+            },
+            bodyFont: {
+              size: 13,
+            },
             callbacks: {
+              title: function (context) {
+                return context[0].label || ''
+              },
               label: function (context) {
                 const label = context.label || ''
                 const value = context.raw || 0
@@ -652,13 +715,45 @@ const createGenreChart = () => {
                   0,
                 )
                 const percentage = Math.round((Number(value) / Number(total)) * 100)
-                return `${label}: ${value} livro(s) (${percentage}%)`
+                return [
+                  `${label}`,
+                  `📚 ${value} livro${value !== 1 ? 's' : ''}`,
+                  `📊 ${percentage}% do total`,
+                ]
               },
             },
           },
         },
+        layout: {
+          padding: isMobile ? 5 : 20, // Menos padding em mobile já que não há legenda
+        },
+        elements: {
+          arc: {
+            borderWidth: 2,
+            hoverBorderWidth: 4,
+          },
+        },
+        animation: {
+          animateRotate: true,
+          animateScale: false,
+          duration: 1000,
+          easing: 'easeOutQuart',
+        },
       },
     })
+
+    // Listener para redimensionamento da janela
+    const handleResize = () => {
+      if (genreChart) {
+        genreChart.destroy()
+        setTimeout(() => createGenreChart(), 100)
+      }
+    }
+
+    // Remove listener anterior se existir
+    window.removeEventListener('resize', handleResize)
+    // Adiciona novo listener
+    window.addEventListener('resize', handleResize)
   } catch (error) {
     console.error('Erro ao criar gráfico de gêneros:', error)
     showNotification('Erro ao criar gráfico de gêneros', 'error')
@@ -741,7 +836,7 @@ const handleAcceptRecommendation = async (recommendation) => {
       showNotification('Livro adicionado à sua biblioteca com sucesso!', 'success')
 
       setTimeout(() => {
-        refreshDashboardData()
+        dashboardStore.fetchDashboardData()
       }, 500)
     } else {
       showNotification('Erro ao aceitar recomendação', 'error')
@@ -767,7 +862,7 @@ const handleRejectRecommendation = async (recommendation) => {
       showNotification('Recomendação recusada', 'info')
 
       setTimeout(() => {
-        refreshDashboardData()
+        dashboardStore.fetchDashboardData()
       }, 500)
     } else {
       showNotification('Erro ao recusar recomendação', 'error')
@@ -907,10 +1002,21 @@ const truncateDescription = (description, maxLength) => {
   letter-spacing: -0.5px;
 }
 
+/* Estilos base para o container do gráfico */
 .chart-container {
   width: 100%;
-  height: 300px;
+  height: 350px;
   position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+/* Estilos para o canvas do gráfico */
+.chart-container canvas {
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .stat-card {
@@ -925,14 +1031,6 @@ const truncateDescription = (description, maxLength) => {
 
 .book-cover-container {
   flex-shrink: 0;
-}
-
-/* Centralização no mobile para o container da capa */
-@media (max-width: 700px) {
-  .book-cover-container {
-    align-items: center !important;
-    text-align: center;
-  }
 }
 
 .book-cover {
@@ -1040,6 +1138,107 @@ const truncateDescription = (description, maxLength) => {
   min-width: 60px;
 }
 
+/* Responsividade para tablets */
+@media (max-width: 960px) and (min-width: 601px) {
+  .chart-container {
+    height: 320px;
+    padding: 12px;
+  }
+
+  /* Ajuste do card do gráfico em tablets */
+  .chart-card {
+    min-height: 380px !important;
+  }
+
+  /* Garante que o gráfico não fique muito pequeno */
+  .chart-container canvas {
+    min-height: 250px;
+  }
+}
+
+/* Responsividade para mobile */
+@media (max-width: 600px) {
+  .chart-container {
+    height: 260px !important; /* Menor altura já que não tem legenda */
+    padding: 8px;
+  }
+
+  /* Ajuste do card do gráfico em mobile */
+  .chart-card {
+    min-height: 330px !important; /* Menor altura total */
+  }
+
+  /* Container do gráfico em mobile */
+  .chart-container canvas {
+    min-height: 200px;
+  }
+
+  /* Ajuste no título do card em mobile */
+  .chart-card .v-card-title {
+    padding: 12px 16px 8px 16px;
+  }
+
+  /* Ajuste no conteúdo do card em mobile */
+  .chart-card .v-card-text {
+    padding: 8px 16px 16px 16px;
+  }
+}
+
+/* Responsividade para telas muito pequenas */
+@media (max-width: 480px) {
+  .chart-container {
+    height: 230px !important; /* Ainda menor para telas muito pequenas */
+    padding: 4px;
+  }
+
+  .chart-card {
+    min-height: 300px !important; /* Menor altura total */
+  }
+
+  /* Reduz ainda mais o padding em telas pequenas */
+  .chart-card .v-card-title {
+    padding: 8px 12px 4px 12px;
+    font-size: 1rem !important;
+  }
+
+  .chart-card .v-card-text {
+    padding: 4px 12px 12px 12px;
+  }
+}
+
+/* Estilos para telas grandes (desktop) */
+@media (min-width: 1200px) {
+  .chart-container {
+    height: 400px;
+    padding: 20px;
+  }
+
+  .chart-card {
+    min-height: 450px !important;
+  }
+}
+
+/* Animações suaves para transições */
+.chart-container,
+.chart-card {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Ajustes específicos para o card de gráfico */
+.chart-card .v-card-title .v-icon {
+  margin-right: 8px;
+}
+
+/* Estado de loading/vazio */
+.chart-container .text-center {
+  padding: 2rem 1rem;
+}
+
+.chart-container .text-center .v-icon {
+  opacity: 0.6;
+  margin-bottom: 1rem;
+}
+
 /* Ajustes para mobile */
 @media (max-width: 700px) {
   .page-title {
@@ -1051,9 +1250,14 @@ const truncateDescription = (description, maxLength) => {
   }
 
   .current-book-card,
-  .chart-card,
   .recommendation-card {
     min-height: 300px;
+  }
+
+  /* Centralização no mobile para o container da capa */
+  .book-cover-container {
+    align-items: center !important;
+    text-align: center;
   }
 
   /* Títulos dos cards quebram em mobile */
@@ -1113,11 +1317,6 @@ const truncateDescription = (description, maxLength) => {
 
   .recommendation-card .recommendation-preview .text-caption {
     font-size: 0.7rem !important;
-  }
-
-  /* Gráfico em mobile */
-  .chart-container {
-    height: 250px !important;
   }
 }
 </style>
