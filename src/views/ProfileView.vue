@@ -1,6 +1,6 @@
 <template>
   <div class="profile-container fill-height d-flex justify-center">
-    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 100%">
+    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 90%">
       <h1 class="text-h3 font-weight-bold mb-4 text-center profile-title">
         <span class="page-title">👤 Meu Perfil</span>
       </h1>
@@ -14,14 +14,14 @@
         <v-col cols="12" md="8" lg="6" class="d-flex flex-column align-center">
           <v-card class="pa-6 rounded-xl profile-card" elevation="2" width="100%">
             <div class="d-flex flex-column align-center">
-              <v-avatar size="150" class="mb-4 elevation-3">
-                <v-img
-                  v-if="profileData.profilePictureUrl"
-                  :src="profileData.profilePictureUrl"
-                  alt="Foto de perfil"
-                />
-                <v-icon v-else size="150" icon="mdi-account-circle" color="grey" />
-              </v-avatar>
+              <!-- COMPONENTE DE UPLOAD DE FOTO SUBSTITUINDO O v-avatar -->
+              <ProfilePictureUpload
+                v-model="profileData.profilePictureUrl"
+                :size="150"
+                :user-name="profileData.name"
+                @uploaded="handlePictureUploaded"
+                class="mb-4"
+              />
 
               <h2 class="text-h4 font-weight-bold mb-2">{{ profileData.name }}</h2>
               <p class="text-subtitle-1 text-grey">{{ userEmail }}</p>
@@ -55,124 +55,68 @@
                       density="comfortable"
                       bg-color="surface"
                       class="flex-grow-1 rounded-lg"
-                      append-inner-icon="mdi-content-copy"
-                      @click:append-inner="!isEditing && copyToClipboard(profileData.name, 'Nome')"
+                      :rules="[(v) => !!v || 'Nome é obrigatório']"
                     />
                   </div>
 
-                  <!-- Email -->
-                  <v-text-field
-                    label="Email"
-                    v-model="userEmail"
-                    readonly
-                    variant="outlined"
-                    class="mb-4 rounded-lg"
-                    density="comfortable"
-                    bg-color="surface"
-                  />
-
                   <!-- Meta de leitura -->
-                  <v-text-field
-                    label="Meta de leitura (livros por ano)"
-                    v-model.number="profileData.readingGoal"
-                    :readonly="!isEditing"
-                    variant="outlined"
-                    type="number"
-                    min="0"
-                    class="mb-4 rounded-lg"
-                    density="comfortable"
-                    bg-color="surface"
-                  />
+                  <div class="d-flex align-center mb-4">
+                    <v-text-field
+                      label="Meta de livros por ano"
+                      v-model.number="profileData.readingGoal"
+                      :readonly="!isEditing"
+                      variant="outlined"
+                      density="comfortable"
+                      bg-color="surface"
+                      class="flex-grow-1 rounded-lg"
+                      type="number"
+                      min="0"
+                      max="1000"
+                    />
+                  </div>
 
-                  <div class="d-flex justify-space-between mt-6">
+                  <!-- Botões de ação -->
+                  <div class="d-flex justify-center gap-3 mt-6">
                     <v-btn
                       v-if="!isEditing"
+                      variant="elevated"
                       color="primary"
                       prepend-icon="mdi-pencil"
                       @click="startEditing"
-                      variant="elevated"
-                      class="rounded-lg"
+                      class="action-btn rounded-lg"
                     >
                       Editar Perfil
                     </v-btn>
+
                     <template v-else>
                       <v-btn
-                        color="primary"
-                        prepend-icon="mdi-content-save"
-                        type="submit"
-                        :loading="isSaving"
-                        variant="elevated"
-                        class="rounded-lg"
-                      >
-                        Salvar
-                      </v-btn>
-                      <v-btn
-                        color="error"
                         variant="outlined"
-                        prepend-icon="mdi-cancel"
+                        color="error"
+                        prepend-icon="mdi-close"
                         @click="cancelEditing"
-                        :disabled="isSaving"
                         class="rounded-lg"
                       >
                         Cancelar
+                      </v-btn>
+                      <v-btn
+                        variant="elevated"
+                        color="success"
+                        prepend-icon="mdi-check"
+                        type="submit"
+                        :loading="isSaving"
+                        class="rounded-lg"
+                      >
+                        Salvar
                       </v-btn>
                     </template>
                   </div>
                 </v-form>
               </div>
-
-              <v-divider class="my-5 w-100"></v-divider>
-
-              <v-btn
-                v-if="!isEditing"
-                variant="outlined"
-                prepend-icon="mdi-image"
-                @click="changeProfilePicture"
-                color="primary"
-                class="mt-2 rounded-lg"
-              >
-                Alterar foto de perfil
-              </v-btn>
             </div>
           </v-card>
         </v-col>
       </v-row>
     </v-card>
-
-    <!-- Dialog para alterar foto de perfil -->
-    <v-dialog v-model="showProfilePictureDialog" max-width="500px">
-      <v-card class="pa-4 rounded-xl">
-        <v-card-title class="text-h5 pt-3 pb-6">Alterar foto de perfil</v-card-title>
-        <v-card-text>
-          <v-text-field
-            v-model="newProfilePictureUrl"
-            label="URL da imagem"
-            placeholder="https://exemplo.com/minha-foto.jpg"
-            variant="outlined"
-            class="mb-3"
-            clearable
-          />
-          <p class="text-caption text-grey">
-            Insira a URL de uma imagem para usar como foto de perfil
-          </p>
-        </v-card-text>
-        <v-card-actions class="pt-3 pb-4 px-4">
-          <v-spacer></v-spacer>
-          <v-btn color="error" variant="text" @click="showProfilePictureDialog = false">
-            Cancelar
-          </v-btn>
-          <v-btn
-            color="primary"
-            @click="updateProfilePicture"
-            :disabled="!newProfilePictureUrl"
-            :loading="isUpdatingPicture"
-            variant="elevated"
-          >
-            Salvar
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
 
     <!-- Snackbar para feedback -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
@@ -188,6 +132,8 @@
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { supabase } from '@/supabase.js'
 import { onMounted, ref } from 'vue'
+// IMPORTAR O COMPONENTE
+import ProfilePictureUpload from '@/components/ProfilePictureUpload.vue'
 
 // Store
 const authStore = useAuthStore()
@@ -196,9 +142,6 @@ const authStore = useAuthStore()
 const isLoading = ref(true)
 const isEditing = ref(false)
 const isSaving = ref(false)
-const showProfilePictureDialog = ref(false)
-const isUpdatingPicture = ref(false)
-const newProfilePictureUrl = ref('')
 const userEmail = ref('')
 const snackbar = ref({
   show: false,
@@ -250,6 +193,18 @@ async function loadProfileData() {
   }
 }
 
+// NOVA FUNÇÃO para lidar com upload de foto
+function handlePictureUploaded(newUrl: string) {
+  // Atualizar dados locais
+  profileData.value.profilePictureUrl = newUrl
+
+  // Mostrar feedback
+  showSnackbar('Foto de perfil atualizada com sucesso!', 'success')
+
+  // Opcional: recarregar dados do perfil para garantir sincronização
+  // loadProfileData();
+}
+
 // Iniciar edição
 function startEditing() {
   isEditing.value = true
@@ -289,41 +244,6 @@ async function saveChanges() {
   }
 }
 
-// Abrir diálogo para alterar foto de perfil
-function changeProfilePicture() {
-  newProfilePictureUrl.value = profileData.value.profilePictureUrl
-  showProfilePictureDialog.value = true
-}
-
-// Atualizar foto de perfil
-async function updateProfilePicture() {
-  if (!authStore.userId) return
-
-  isUpdatingPicture.value = true
-
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        profile_picture_url: newProfilePictureUrl.value,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', authStore.userId)
-
-    if (error) throw error
-
-    // Atualizar dados locais
-    profileData.value.profilePictureUrl = newProfilePictureUrl.value
-    showProfilePictureDialog.value = false
-    showSnackbar('Foto de perfil atualizada com sucesso', 'success')
-  } catch (err) {
-    console.error('Erro ao atualizar foto de perfil:', err)
-    showSnackbar('Erro ao atualizar foto de perfil', 'error')
-  } finally {
-    isUpdatingPicture.value = false
-  }
-}
-
 // Copiar para a área de transferência
 function copyToClipboard(text: string, label: string) {
   navigator.clipboard
@@ -338,7 +258,7 @@ function copyToClipboard(text: string, label: string) {
 }
 
 // Exibir snackbar com mensagem
-function showSnackbar(text, color = 'success') {
+function showSnackbar(text: string, color: string = 'success') {
   snackbar.value = {
     show: true,
     text,

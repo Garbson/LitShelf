@@ -87,21 +87,26 @@
                   :class="{ 'has-notifications': hasNotifications }"
                 >
                   <!-- Avatar com melhor styling -->
-                  <v-avatar
-                    size="36"
+                  <ProfilePictureUpload
+                    :model-value="userProfilePicture"
+                    :size="36"
+                    :readonly="true"
+                    :show-upload-button="false"
+                    :user-name="userDisplayName"
                     class="user-avatar"
                     :class="{ 'avatar-with-status': hasNotifications }"
                   >
-                    <v-img
-                      v-if="userProfilePicture"
-                      :src="userProfilePicture"
-                      alt="Avatar do usuário"
-                      class="avatar-image"
-                    ></v-img>
-                    <v-icon v-else color="white" size="20">mdi-account</v-icon>
-                  </v-avatar>
+                    <v-badge
+                      v-if="hasNotifications"
+                      color="error"
+                      content="2"
+                      floating
+                      offset-x="-2"
+                      offset-y="-2"
+                      class="notification-badge"
+                    ></v-badge>
+                  </ProfilePictureUpload>
 
-                  <!-- Informações do usuário (visível em telas maiores) -->
                   <div class="user-info d-none d-xl-flex">
                     <div class="user-details">
                       <span class="user-name">{{ userDisplayName }}</span>
@@ -118,19 +123,16 @@
               <!-- Header do menu com avatar centralizado -->
               <div class="menu-header">
                 <div class="menu-header-content">
-                  <v-avatar size="80" color="primary" class="menu-avatar">
-                    <v-img
-                      v-if="userProfilePicture"
-                      :src="userProfilePicture"
-                      alt="Avatar do usuário"
-                    ></v-img>
-                    <v-icon v-else color="white" size="40">mdi-account</v-icon>
-                  </v-avatar>
+                  <ProfilePictureUpload
+                    :model-value="userProfilePicture"
+                    :size="80"
+                    :readonly="true"
+                    :show-upload-button="false"
+                    :user-name="userDisplayName"
+                    class="menu-avatar"
+                  />
                 </div>
               </div>
-
-              <v-divider></v-divider>
-
               <!-- Lista de ações -->
               <v-list density="comfortable" class="menu-list">
                 <v-list-item
@@ -312,6 +314,7 @@
 </template>
 
 <script lang="ts" setup>
+import ProfilePictureUpload from '@/components/ProfilePictureUpload.vue'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useBookshelfStore } from '@/stores/useBookshelfStore'
 import { supabase } from '@/supabase'
@@ -560,8 +563,6 @@ const goToSettings = () => {
   border-radius: 3px;
 }
 
-/* ===== ESTILOS MELHORADOS PARA O BOTÃO DE PERFIL ===== */
-
 .user-profile-container {
   position: relative;
 }
@@ -571,6 +572,7 @@ const goToSettings = () => {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 24px;
   text-transform: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
   min-height: 48px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -594,8 +596,8 @@ const goToSettings = () => {
 }
 
 .user-avatar {
-  border: 2px solid rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .user-avatar.avatar-with-status {
@@ -653,7 +655,6 @@ const goToSettings = () => {
 .user-menu-card {
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
 }
@@ -661,7 +662,6 @@ const goToSettings = () => {
 .menu-header {
   background: linear-gradient(135deg, var(--v-primary-base), var(--v-primary-darken-1));
   padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -671,11 +671,6 @@ const goToSettings = () => {
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.menu-avatar {
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
 }
 
 .menu-list {
