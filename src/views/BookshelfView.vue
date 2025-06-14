@@ -2,15 +2,15 @@
   <div class="bookshelf-container fill-height d-flex justify-center">
     <!-- Container principal com largura controlada -->
     <div class="main-container">
-      <h1 class="text-h3 font-weight-bold mb-6 text-center bookshelf-title">
-        <span class="page-title">
+      <div class="text-h3 font-weight-bold text-center bookshelf-title">
+        <span class="page-title mt-5">
           <template v-if="friendInfo"> 📚 Estante de {{ friendInfo.name }} </template>
           <template v-else> 📚 Minha Estante Digital </template>
         </span>
-      </h1>
+      </div>
 
       <!-- Filtros e pesquisa -->
-      <v-row class="mb-6 filters-section">
+      <v-row class="mb-6 mt-5 filters-section">
         <v-col cols="12" sm="6" md="4" class="filter-col">
           <BaseTextField
             v-model="searchQuery"

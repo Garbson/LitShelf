@@ -3,9 +3,9 @@
     <!-- Container principal com largura controlada -->
     <div class="main-container">
       <!-- Título -->
-      <h1 class="text-h3 font-weight-bold mb-6 text-center bookshelf-title">
-        <span class="page-title">🔎 Adicionar Livros</span>
-      </h1>
+      <div class="text-h3 font-weight-bold mb-6 text-center bookshelf-title">
+        <span class="page-title mt-5">🔎 Adicionar Livros</span>
+      </div>
 
       <!-- Campo de busca centralizado -->
       <div class="search-container mb-6">
