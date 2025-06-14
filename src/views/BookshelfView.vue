@@ -1,8 +1,8 @@
 <template>
   <div class="bookshelf-container fill-height d-flex justify-center">
-    <!-- O aviso destacado foi removido, mantendo apenas o título -->
-    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 90%">
-      <h1 class="text-h3 font-weight-bold mb-4 text-center bookshelf-title">
+    <!-- Container principal com largura controlada -->
+    <div class="main-container">
+      <h1 class="text-h3 font-weight-bold mb-6 text-center bookshelf-title">
         <span class="page-title">
           <template v-if="friendInfo"> 📚 Estante de {{ friendInfo.name }} </template>
           <template v-else> 📚 Minha Estante Digital </template>
@@ -10,42 +10,41 @@
       </h1>
 
       <!-- Filtros e pesquisa -->
-      <v-row class="mb-6 d-flex justify-center">
-        <v-col cols="12" sm="6" md="4">
+      <v-row class="mb-6 filters-section">
+        <v-col cols="12" sm="6" md="4" class="filter-col">
           <BaseTextField
             v-model="searchQuery"
             label="Pesquisar livros"
             prepend-inner-icon="mdi-magnify"
-            class="search-field rounded-lg"
+            class="search-field rounded-lg text-text"
             clearable
-            dense
+            density="comfortable"
             rounded="lg"
+            color="background"
           />
         </v-col>
 
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="4" class="filter-col">
           <v-select
             v-model="selectedFilter"
             :items="filterOptions"
             label="Filtrar por status"
             variant="outlined"
-            density="comfortable"
             rounded="lg"
             hide-details
-            class="filter-field"
+            class="filter-field text-text"
           ></v-select>
         </v-col>
 
-        <v-col cols="12" sm="6" md="4">
+        <v-col cols="12" sm="6" md="4" class="filter-col">
           <v-select
             v-model="sortOption"
             :items="sortOptions"
             label="Ordenar por"
             variant="outlined"
-            density="comfortable"
             rounded="lg"
             hide-details
-            class="sort-field rounded-lg"
+            class="sort-field text-text"
           ></v-select>
         </v-col>
       </v-row>
@@ -63,88 +62,83 @@
         {{ bookshelfStore.error }}
       </v-alert>
 
-      <!-- Lista de livros filtrados -->
-      <v-row v-if="paginatedBooks.length" justify="center" align="start">
-        <v-col
-          v-for="book in paginatedBooks"
-          :key="book.id"
-          cols="12"
-          sm="6"
-          md="4"
-          lg="3"
-          class="d-flex justify-center"
-          v-motion
-          :initial="{ opacity: 0, y: 50 }"
-          :enter="{ opacity: 1, y: 0, transition: { delay: 100 * book.index } }"
-        >
-          <v-card
-            class="ma-4 rounded-xl book-card"
-            width="280"
-            elevation="2"
-            @click="goToBookDetails(book.id)"
-            :class="{ 'reading-glow': book.status === 2 || book.status === '2' }"
+      <!-- Container dos cards com largura alinhada aos filtros -->
+      <div v-if="paginatedBooks.length" class="books-container">
+        <div class="books-grid">
+          <div
+            v-for="book in paginatedBooks"
+            :key="book.id"
+            class="book-item"
+            v-motion
+            :initial="{ opacity: 0, y: 50 }"
+            :enter="{ opacity: 1, y: 0, transition: { delay: 100 * book.index } }"
           >
-            <div class="book-cover-container">
-              <v-img
-                :src="book.cover_image_url || '/placeholder-book.png'"
-                :alt="book.title"
-                height="240"
-                :cover="false"
-                class="book-cover"
-                style="object-fit: contain"
-              />
-
-              <!-- Avaliação por estrelas se existir -->
-              <div v-if="book.rating" class="rating-badge">
-                <v-icon color="amber" size="small">mdi-star</v-icon>
-                <span>{{ book.rating }}</span>
+            <v-card
+              class="book-card rounded-xl"
+              elevation="2"
+              @click="goToBookDetails(book.id)"
+              :class="{ 'reading-glow': book.status === 2 || book.status === '2' }"
+            >
+              <div class="book-cover-container">
+                <v-img
+                  :src="book.cover_image_url || '/placeholder-book.png'"
+                  :alt="book.title"
+                  height="240"
+                  contain
+                  class="book-cover"
+                />
               </div>
-            </div>
 
-            <!-- Tag de status como v-chip abaixo da imagem -->
-            <div class="status-container">
-              <v-chip
-                class="status-chip"
-                :color="getStatusColor(book.status)"
-                text-color="white"
-                size="small"
-              >
-                <v-icon start size="small">{{ getStatusIcon(book.status) }}</v-icon>
-                {{ getStatusLabel(book.status) }}
-              </v-chip>
-            </div>
+              <v-card-item class="pa-4">
+                <v-card-title class="card-title text-h6 mb-2 line-clamp-2">
+                  {{ book.title }}
+                </v-card-title>
 
-            <v-card-item>
-              <v-card-title class="text-subtitle-1 font-weight-bold text-truncate book-title pa-0">
-                {{ book.title }}
-              </v-card-title>
+                <v-card-subtitle class="text-body-2 mb-3 line-clamp-1">
+                  {{ book.author || 'Autor desconhecido' }}
+                </v-card-subtitle>
 
-              <v-card-subtitle class="text-caption text-truncate book-author pa-0 pt-1">
-                {{ book.author }}
-              </v-card-subtitle>
+                <!-- Status chip positioned below title -->
+                <div class="mb-3">
+                  <v-chip
+                    :color="getStatusColor(book.status)"
+                    size="small"
+                    class="status-chip"
+                    :prepend-icon="getStatusIcon(book.status)"
+                  >
+                    {{ getStatusLabel(book.status) }}
+                  </v-chip>
+                </div>
 
-              <div class="d-flex align-center justify-space-between mt-2">
-                <v-chip
-                  size="x-small"
-                  class="genre-chip"
-                  variant="flat"
-                  :color="book.genre ? 'default' : 'grey-lighten-1'"
-                >
-                  {{ book.genre || 'Gênero desconhecido' }}
-                </v-chip>
+                <!-- Informações extras -->
+                <div class="d-flex justify-space-between align-center">
+                  <v-chip
+                    size="x-small"
+                    variant="tonal"
+                    :color="
+                      book.genre === 'Ficção'
+                        ? 'purple'
+                        : book.genre === 'Romance'
+                          ? 'pink'
+                          : 'default'
+                    "
+                  >
+                    {{ book.genre || 'Gênero desconhecido' }}
+                  </v-chip>
 
-                <span v-if="book.pageCount" class="text-caption pages-count">
-                  <v-icon size="x-small" class="me-1">mdi-file-document-outline</v-icon>
-                  {{ book.pageCount }} págs
-                </span>
-              </div>
-            </v-card-item>
-          </v-card>
-        </v-col>
-      </v-row>
+                  <span v-if="book.pageCount" class="text-caption pages-count">
+                    <v-icon size="x-small" class="me-1">mdi-file-document-outline</v-icon>
+                    {{ book.pageCount }} págs
+                  </span>
+                </div>
+              </v-card-item>
+            </v-card>
+          </div>
+        </div>
+      </div>
 
       <!-- Controles de paginação -->
-      <div v-if="filteredBooks.length > booksPerPage" class="d-flex justify-center my-4">
+      <div v-if="filteredBooks.length > booksPerPage" class="d-flex justify-center my-6">
         <v-pagination
           v-model="currentPage"
           :length="totalPages"
@@ -153,75 +147,88 @@
         ></v-pagination>
       </div>
 
-      <!-- Mensagem de nenhum livro do amigo -->
+      <!-- Mensagem quando não há livros -->
       <v-card
-        v-else-if="
-          !bookshelfStore.isLoading &&
-          !bookshelfStore.error &&
-          friendId &&
-          computedBooks.length === 0
-        "
+        v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error && computedBooks.length === 0"
         class="pa-8 text-center empty-bookshelf-card"
       >
-        <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-bookshelf</v-icon>
-        <p class="text-h6 mb-4">A estante deste amigo está vazia.</p>
-        <v-btn color="primary" :to="'/friends'" prepend-icon="mdi-arrow-left" variant="elevated">
-          Voltar para Amigos
-        </v-btn>
+        <v-icon size="64" color="grey-lighten-1" class="mb-4">
+          {{ friendId ? 'mdi-bookshelf' : 'mdi-book-plus' }}
+        </v-icon>
+        <p class="text-h6 mb-4">
+          {{
+            friendId
+              ? 'A estante deste amigo está vazia.'
+              : 'Sua estante está vazia! Que tal adicionar seu primeiro livro?'
+          }}
+        </p>
+        <div class="d-flex gap-3 justify-center flex-wrap">
+          <v-btn
+            v-if="friendId"
+            color="primary"
+            :to="'/friends'"
+            prepend-icon="mdi-arrow-left"
+            variant="elevated"
+            rounded="xl"
+          >
+            Voltar para Amigos
+          </v-btn>
+          <v-btn
+            v-else
+            color="primary"
+            :to="'/addBook'"
+            prepend-icon="mdi-book-plus"
+            variant="elevated"
+            rounded="xl"
+          >
+            Adicionar Primeiro Livro
+          </v-btn>
+        </div>
       </v-card>
 
-      <!-- Card para nenhum resultado de filtro em estante de amigo -->
+      <!-- Mensagem de filtro sem resultados -->
       <v-card
-        v-else-if="
-          !bookshelfStore.isLoading &&
-          !bookshelfStore.error &&
-          friendId &&
-          filteredBooks.length === 0
-        "
+        v-else-if="!bookshelfStore.isLoading && !bookshelfStore.error && filteredBooks.length === 0"
         class="pa-8 text-center empty-bookshelf-card"
       >
         <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-filter-remove</v-icon>
-        <p class="text-h6 mb-4">Nenhum livro do amigo corresponde aos critérios de busca.</p>
+        <p class="text-h6 mb-4">Nenhum livro corresponde aos critérios de busca.</p>
         <div class="d-flex gap-3 justify-center">
           <v-btn
             color="secondary"
             @click="resetFilters"
             prepend-icon="mdi-filter-remove-outline"
             variant="tonal"
+            rounded="xl"
           >
             Limpar Filtros
           </v-btn>
-          <v-btn color="primary" :to="'/friends'" prepend-icon="mdi-arrow-left" variant="elevated">
+          <v-btn
+            v-if="friendId"
+            color="primary"
+            :to="'/friends'"
+            prepend-icon="mdi-arrow-left"
+            variant="elevated"
+            rounded="xl"
+          >
             Voltar para Amigos
           </v-btn>
         </div>
       </v-card>
-    </v-card>
+    </div>
 
-    <!-- Botão flutuante para voltar para a página de amigos quando estiver vendo estante de amigo -->
-    <v-btn
-      v-if="friendId"
-      color="primary"
-      :to="'/friends'"
-      append-icon="mdi-arrow-right"
-      size="large"
-      class="back-to-friends-btn"
-      variant="elevated"
-    >
-      Voltar para Amigos
-    </v-btn>
-
-    <!-- Botão destacado para voltar à própria estante quando estiver vendo estante de amigo -->
+    <!-- Botões flutuantes para navegação quando estiver vendo estante de amigo -->
     <v-btn
       v-if="friendId"
       color="accent"
       @click="goToMyBookshelf"
       prepend-icon="mdi-bookshelf"
       size="large"
-      class="my-bookshelf-btn"
+      class="floating-btn my-bookshelf-btn"
       variant="elevated"
+      rounded="xl"
     >
-      Ir para Minha Estante
+      Minha Estante
     </v-btn>
 
     <!-- Snackbar para notificações -->
@@ -253,8 +260,8 @@ const showSnackbar = ref(false)
 const snackbarText = ref('')
 const snackbarColor = ref('success')
 const currentPage = ref(1)
-const booksPerPage = 8
-const friendInfo = ref(null) // Informação do amigo
+const booksPerPage = 12
+const friendInfo = ref(null)
 const friendId = computed(() => (route.query.friendId as string) || null)
 const friendBooks = ref<any[]>([])
 
@@ -277,7 +284,6 @@ const sortOptions = [
 ]
 
 const computedBooks = computed(() => {
-  // Simplesmente retorna os livros da store, sem cache ou modificações.
   return bookshelfStore.books.map((book, index) => {
     return reactive({ ...book, isHovered: false, index })
   })
@@ -287,65 +293,54 @@ const computedBooks = computed(() => {
 const filteredBooks = computed(() => {
   let result = [...computedBooks.value]
 
-  // Aplicar filtro por status - corrigido para garantir comparação consistente
+  // Aplicar filtro por status
   if (selectedFilter.value !== 'all') {
     result = result.filter((book) => {
-      // Converter ambos para número para garantir a comparação correta
-      const bookStatus = typeof book.status === 'string' ? Number(book.status) : book.status
-      const filterStatus = Number(selectedFilter.value)
+      const bookStatus = typeof book.status === 'string' ? parseInt(book.status) : book.status
+      const filterStatus = parseInt(selectedFilter.value)
       return bookStatus === filterStatus
     })
   }
 
-  // Aplicar pesquisa
+  // Aplicar filtro de pesquisa
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(
       (book) =>
-        book.title.toLowerCase().includes(query) ||
-        book.author.toLowerCase().includes(query) ||
-        (book.genre && book.genre.toLowerCase().includes(query)),
+        book.title?.toLowerCase().includes(query) ||
+        book.author?.toLowerCase().includes(query) ||
+        book.genre?.toLowerCase().includes(query),
     )
   }
 
   // Aplicar ordenação
-  switch (sortOption.value) {
-    case 'title_asc':
-      result.sort((a, b) => a.title.localeCompare(b.title))
-      break
-    case 'title_desc':
-      result.sort((a, b) => b.title.localeCompare(a.title))
-      break
-    case 'author_asc':
-      result.sort((a, b) => a.author.localeCompare(b.author))
-      break
-    case 'author_desc':
-      result.sort((a, b) => b.author.localeCompare(a.author))
-      break
-    case 'date_desc':
-      result.sort((a, b) => {
-        const dateA = a.addedAt ? new Date(a.addedAt).getTime() : 0
-        const dateB = b.addedAt ? new Date(b.addedAt).getTime() : 0
-        return dateB - dateA
-      })
-      break
-    case 'date_asc':
-      result.sort((a, b) => {
-        const dateA = a.addedAt ? new Date(a.addedAt).getTime() : 0
-        const dateB = b.addedAt ? new Date(b.addedAt).getTime() : 0
-        return dateA - dateB
-      })
-      break
-  }
+  result.sort((a, b) => {
+    switch (sortOption.value) {
+      case 'title_asc':
+        return (a.title || '').localeCompare(b.title || '')
+      case 'title_desc':
+        return (b.title || '').localeCompare(a.title || '')
+      case 'author_asc':
+        return (a.author || '').localeCompare(b.author || '')
+      case 'author_desc':
+        return (b.author || '').localeCompare(a.author || '')
+      case 'date_desc':
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      case 'date_asc':
+        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      default:
+        return 0
+    }
+  })
 
   return result
 })
 
 // Livros paginados
 const paginatedBooks = computed(() => {
-  const startIndex = (currentPage.value - 1) * booksPerPage
-  const endIndex = startIndex + booksPerPage
-  return filteredBooks.value.slice(startIndex, endIndex)
+  const start = (currentPage.value - 1) * booksPerPage
+  const end = start + booksPerPage
+  return filteredBooks.value.slice(start, end)
 })
 
 // Total de páginas
@@ -353,49 +348,28 @@ const totalPages = computed(() => {
   return Math.ceil(filteredBooks.value.length / booksPerPage)
 })
 
-// Verificar se há mensagem de sucesso via query param (ex: após deletar livro)
+// Watchers
 watch(
-  () => route.query.message,
-  (newMessage) => {
-    if (newMessage) {
-      snackbarText.value = newMessage as string
-      snackbarColor.value = 'success'
-      showSnackbar.value = true
-
-      // Limpar a query param após mostrar a mensagem
-      router.replace({ query: { friendId: friendId.value } })
-    }
-  },
-)
-
-// Watcher para monitorar mudanças no friendId (quando a URL muda)
-watch(
-  friendId,
+  () => route.query.friendId,
   async (newFriendId) => {
-
     if (newFriendId) {
-      // Estamos vendo a estante de um amigo
       await fetchFriendInfo(newFriendId)
       await loadFriendBooks(newFriendId)
     } else {
-      // Voltamos para nossa própria estante
       friendInfo.value = null
       await refreshBookshelf()
     }
   },
   { immediate: false },
-) // não disparar imediatamente, pois já tratamos no onMounted
+)
 
-// Resetar a página atual quando os filtros ou ordenação mudarem
 watch([searchQuery, selectedFilter, sortOption], () => {
   currentPage.value = 1
 })
 
-// Recarregar livros ao montar o componente
+// Lifecycle
 onMounted(async () => {
-  // Em vez de tentar modificar books diretamente, usamos o método do store projetado para isso
-  bookshelfStore.setViewingFriend(null) // Isso reseta o store para o modo de estante pessoal
-
+  bookshelfStore.setViewingFriend(null)
 
   if (friendId.value) {
     await fetchFriendInfo(friendId.value)
@@ -405,36 +379,32 @@ onMounted(async () => {
   }
 })
 
-// Adicionar onActivated para garantir que os dados sejam atualizados
-// quando o usuário retorna à página da estante
 onActivated(() => {
   if (!friendId.value) {
     refreshBookshelf()
   } else {
-    // Se for uma estante de amigo, garantir que não seja sobreposta
     loadFriendBooks(friendId.value)
   }
 })
 
+// Methods
 const goToBookDetails = (bookId: string) => {
-  // Se estivermos vendo a estante de um amigo, incluir o friendId na navegação
   if (friendId.value) {
     router.push(`/book/${bookId}?friendId=${friendId.value}`)
   } else {
     router.push(`/book/${bookId}`)
   }
 }
+
 const refreshBookshelf = async () => {
   await bookshelfStore.fetchBooks()
 }
 
-// Carrega os livros do amigo
 async function loadFriendBooks(id: string) {
   try {
     bookshelfStore.isLoading = true
     bookshelfStore.error = ''
 
-    // Obter o usuário logado atual
     const userSession = await supabase.auth.getSession()
     const currentUserId = userSession.data.session?.user.id
 
@@ -442,8 +412,6 @@ async function loadFriendBooks(id: string) {
       throw new Error('Usuário não autenticado')
     }
 
-
-    // Usar o novo método específico para carregar livros de amigos
     await bookshelfStore.fetchFriendBooks(id)
   } catch (err) {
     console.error('Erro ao carregar livros do amigo:', err)
@@ -453,7 +421,6 @@ async function loadFriendBooks(id: string) {
   }
 }
 
-// Busca informações do amigo
 async function fetchFriendInfo(id: string) {
   try {
     const { data, error } = await supabase
@@ -473,7 +440,6 @@ async function fetchFriendInfo(id: string) {
   }
 }
 
-// Retorna a cor do chip de status
 const getStatusColor = (status: string | number): string => {
   const statusNum = Number(status)
   switch (statusNum) {
@@ -486,7 +452,6 @@ const getStatusColor = (status: string | number): string => {
   }
 }
 
-// Retorna o texto do status
 const getStatusLabel = (status: string | number): string => {
   const statusNum = Number(status)
   switch (statusNum) {
@@ -499,7 +464,6 @@ const getStatusLabel = (status: string | number): string => {
   }
 }
 
-// Retorna o ícone de acordo com o status
 const getStatusIcon = (status: string | number): string => {
   const statusNum = Number(status)
   switch (statusNum) {
@@ -512,20 +476,6 @@ const getStatusIcon = (status: string | number): string => {
   }
 }
 
-// Retorna a classe CSS para a fita de status
-const getStatusClass = (status: string | number): string => {
-  const statusNum = Number(status)
-  switch (statusNum) {
-    case 2:
-      return 'reading-status'
-    case 1:
-      return 'completed-status'
-    default:
-      return 'wishlist-status'
-  }
-}
-
-// Função para resetar todos os filtros
 const resetFilters = () => {
   searchQuery.value = ''
   selectedFilter.value = 'all'
@@ -533,21 +483,14 @@ const resetFilters = () => {
   currentPage.value = 1
 }
 
-// Função para voltar à própria estante
 const goToMyBookshelf = async () => {
   friendInfo.value = null
-
-  // Limpar o estado do store para garantir que não há mais referência aos livros do amigo
   bookshelfStore.setViewingFriend(null)
-  friendBooks.value = [] // Limpar o array local também
-
+  friendBooks.value = []
 
   await bookshelfStore.fetchBooks()
-
-  // Navegar para a página da estante sem parâmetros de consulta
   router.push('/bookshelf')
 
-  // Mostrar confirmação para o usuário
   snackbarText.value = 'Voltando para sua estante'
   snackbarColor.value = 'info'
   showSnackbar.value = true
@@ -563,14 +506,56 @@ const goToMyBookshelf = async () => {
   position: relative;
 }
 
-.card-container {
-  background: transparent;
+/* Container principal com largura controlada */
+.main-container {
+  width: 90%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Container dos filtros com espaçamento adequado */
+.filters-section {
+  margin-bottom: 2rem;
+}
+
+.filter-col {
+  padding: 0 12px;
+}
+
+.search-field,
+.filter-field,
+.sort-field {
+  width: 100%;
+}
+
+/* Estilos dos filtros seguindo padrão do AddBookView */
+.search-field,
+.filter-field,
+.sort-field {
+  width: 100%;
+}
+
+/* Container dos cards alinhado com os filtros */
+.books-container {
+  width: 100%;
+}
+
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  justify-items: center;
+}
+
+.book-item {
+  width: 100%;
+  max-width: 280px;
 }
 
 .book-card {
   cursor: pointer;
   transition: all 0.3s ease-in-out;
-  border-radius: 16px;
+  border-radius: 16px !important;
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
   position: relative;
@@ -578,19 +563,12 @@ const goToMyBookshelf = async () => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  width: 280px !important;
-  max-width: 280px;
+  width: 100%;
 }
 
 .book-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-}
-
-.book-card v-card-item {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
 }
 
 .reading-glow {
@@ -629,107 +607,114 @@ const goToMyBookshelf = async () => {
   transform: scale(1.05);
 }
 
-/* Tag de status estilizada como v-chip */
 .status-chip {
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  font-size: 0.85rem;
+  position: relative;
+  z-index: 1;
 }
 
-.status-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.rating-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  border-radius: 12px;
-  padding: 3px 8px;
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  column-gap: 2px;
-}
-
-.book-title {
-  font-size: 1rem;
+.card-title {
+  font-weight: 600;
   line-height: 1.3;
+  color: rgb(var(--v-theme-primary));
+}
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.book-author {
-  font-size: 0.85rem;
-  line-height: 1.2;
-  opacity: 0.8;
-  color: rgb(var(--v-theme-on-surface), 0.8);
-}
-
-.genre-chip {
-  font-size: 0.7rem;
 }
 
 .pages-count {
-  color: rgb(var(--v-theme-on-surface), 0.7);
+  color: rgb(var(--v-theme-on-surface-variant));
   display: flex;
   align-items: center;
 }
 
-.floating-btn-container {
-  display: none;
-}
-
-.search-field,
-.filter-field,
-.sort-field {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 8px;
-  margin: 0 auto;
-}
-
 .empty-bookshelf-card {
-  border-radius: 16px;
   background: rgb(var(--v-theme-surface));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
-  margin: 0 auto;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-.friend-alert {
-  font-size: 1rem;
-  font-weight: 500;
-  text-align: center;
-}
-
-.back-to-friends-btn {
+.floating-btn {
   position: fixed;
-  bottom: 16px;
-  right: 16px;
-  z-index: 1000;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10;
 }
 
-.my-bookshelf-btn {
-  position: fixed;
-  bottom: 16px;
-  left: 16px;
-  z-index: 1000;
+/* Responsividade */
+@media (max-width: 1200px) {
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 960px) {
+  .main-container {
+    width: 95%;
+  }
+
+  .filter-col {
+    padding: 0 8px;
+    margin-bottom: 12px;
+  }
+
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
 }
 
 @media (max-width: 600px) {
+  .bookshelf-container {
+    padding: 0.5rem;
+  }
+
+  .main-container {
+    width: 90%;
+  }
+
   .page-title {
     font-size: 1.8rem;
   }
 
-  .book-card {
-    width: 240px;
+  .filter-col {
+    padding: 0 4px;
+    margin-bottom: 16px;
+  }
+
+  .books-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .book-item {
+    max-width: 100%;
+  }
+
+  .floating-btn {
+    bottom: 16px;
+    right: 16px;
+  }
+}
+
+@media (max-width: 400px) {
+  .bookshelf-container {
+    padding: 0.25rem;
+  }
+
+  .page-title {
+    font-size: 1.6rem;
   }
 
   .book-cover-container {

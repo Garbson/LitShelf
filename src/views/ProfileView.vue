@@ -1,6 +1,6 @@
 <template>
   <div class="profile-container fill-height d-flex justify-center">
-    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 90%">
+    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 100%">
       <h1 class="text-h3 font-weight-bold mb-4 text-center profile-title">
         <span class="page-title">👤 Meu Perfil</span>
       </h1>
@@ -173,7 +173,7 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-    
+
     <!-- Snackbar para feedback -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000">
       {{ snackbar.text }}
@@ -185,26 +185,26 @@
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from '@/stores/useAuthStore.js';
-import { supabase } from '@/supabase.js';
-import { onMounted, ref } from 'vue';
+import { useAuthStore } from '@/stores/useAuthStore.js'
+import { supabase } from '@/supabase.js'
+import { onMounted, ref } from 'vue'
 
 // Store
-const authStore = useAuthStore();
+const authStore = useAuthStore()
 
-// Estado 
-const isLoading = ref(true);
-const isEditing = ref(false);
-const isSaving = ref(false);
-const showProfilePictureDialog = ref(false);
-const isUpdatingPicture = ref(false);
-const newProfilePictureUrl = ref('');
-const userEmail = ref('');
+// Estado
+const isLoading = ref(true)
+const isEditing = ref(false)
+const isSaving = ref(false)
+const showProfilePictureDialog = ref(false)
+const isUpdatingPicture = ref(false)
+const newProfilePictureUrl = ref('')
+const userEmail = ref('')
 const snackbar = ref({
   show: false,
   text: '',
-  color: 'success'
-});
+  color: 'success',
+})
 
 // Dados do formulário
 const profileData = ref({
@@ -212,24 +212,24 @@ const profileData = ref({
   name: '',
   profilePictureUrl: '',
   readingGoal: 0,
-});
+})
 
 // Carregar dados do perfil
 async function loadProfileData() {
-  if (!authStore.userId) return;
+  if (!authStore.userId) return
 
-  isLoading.value = true;
-  
+  isLoading.value = true
+
   try {
     // Carregar os dados do perfil
     const { data, error } = await supabase
       .from('profiles')
       .select('id, name, profile_picture_url, reading_goal')
       .eq('id', authStore.userId)
-      .single();
+      .single()
 
-    if (error) throw error;
-    
+    if (error) throw error
+
     // Preencher os dados do perfil
     if (data) {
       profileData.value = {
@@ -237,104 +237,104 @@ async function loadProfileData() {
         name: data.name || '',
         profilePictureUrl: data.profile_picture_url || '',
         readingGoal: data.reading_goal || 0,
-      };
+      }
     }
 
     // Carregar o email do usuário a partir do authStore
-    userEmail.value = authStore.user?.email || '';
-
+    userEmail.value = authStore.user?.email || ''
   } catch (err) {
-    console.error('Erro ao carregar dados do perfil:', err);
-    showSnackbar('Erro ao carregar dados do perfil', 'error');
+    console.error('Erro ao carregar dados do perfil:', err)
+    showSnackbar('Erro ao carregar dados do perfil', 'error')
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
 }
 
 // Iniciar edição
 function startEditing() {
-  isEditing.value = true;
+  isEditing.value = true
 }
 
 // Cancelar edição
 function cancelEditing() {
-  isEditing.value = false;
-  loadProfileData(); // Recarregar dados originais
+  isEditing.value = false
+  loadProfileData() // Recarregar dados originais
 }
 
 // Salvar alterações
 async function saveChanges() {
-  if (!authStore.userId) return;
-  
-  isSaving.value = true;
-  
+  if (!authStore.userId) return
+
+  isSaving.value = true
+
   try {
     const { error } = await supabase
       .from('profiles')
       .update({
         name: profileData.value.name,
         reading_goal: profileData.value.readingGoal,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', authStore.userId);
-    
-    if (error) throw error;
-    
-    isEditing.value = false;
-    showSnackbar('Perfil atualizado com sucesso', 'success');
+      .eq('id', authStore.userId)
+
+    if (error) throw error
+
+    isEditing.value = false
+    showSnackbar('Perfil atualizado com sucesso', 'success')
   } catch (err) {
-    console.error('Erro ao salvar alterações no perfil:', err);
-    showSnackbar('Erro ao salvar alterações', 'error');
+    console.error('Erro ao salvar alterações no perfil:', err)
+    showSnackbar('Erro ao salvar alterações', 'error')
   } finally {
-    isSaving.value = false;
+    isSaving.value = false
   }
 }
 
 // Abrir diálogo para alterar foto de perfil
 function changeProfilePicture() {
-  newProfilePictureUrl.value = profileData.value.profilePictureUrl;
-  showProfilePictureDialog.value = true;
+  newProfilePictureUrl.value = profileData.value.profilePictureUrl
+  showProfilePictureDialog.value = true
 }
 
 // Atualizar foto de perfil
 async function updateProfilePicture() {
-  if (!authStore.userId) return;
-  
-  isUpdatingPicture.value = true;
-  
+  if (!authStore.userId) return
+
+  isUpdatingPicture.value = true
+
   try {
     const { error } = await supabase
       .from('profiles')
       .update({
         profile_picture_url: newProfilePictureUrl.value,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', authStore.userId);
-    
-    if (error) throw error;
-    
+      .eq('id', authStore.userId)
+
+    if (error) throw error
+
     // Atualizar dados locais
-    profileData.value.profilePictureUrl = newProfilePictureUrl.value;
-    showProfilePictureDialog.value = false;
-    showSnackbar('Foto de perfil atualizada com sucesso', 'success');
+    profileData.value.profilePictureUrl = newProfilePictureUrl.value
+    showProfilePictureDialog.value = false
+    showSnackbar('Foto de perfil atualizada com sucesso', 'success')
   } catch (err) {
-    console.error('Erro ao atualizar foto de perfil:', err);
-    showSnackbar('Erro ao atualizar foto de perfil', 'error');
+    console.error('Erro ao atualizar foto de perfil:', err)
+    showSnackbar('Erro ao atualizar foto de perfil', 'error')
   } finally {
-    isUpdatingPicture.value = false;
+    isUpdatingPicture.value = false
   }
 }
 
 // Copiar para a área de transferência
 function copyToClipboard(text: string, label: string) {
-  navigator.clipboard.writeText(text)
+  navigator.clipboard
+    .writeText(text)
     .then(() => {
-      showSnackbar(`${label} copiado para a área de transferência`, 'success');
+      showSnackbar(`${label} copiado para a área de transferência`, 'success')
     })
-    .catch(err => {
-      console.error('Erro ao copiar para a área de transferência:', err);
-      showSnackbar('Não foi possível copiar o texto', 'error');
-    });
+    .catch((err) => {
+      console.error('Erro ao copiar para a área de transferência:', err)
+      showSnackbar('Não foi possível copiar o texto', 'error')
+    })
 }
 
 // Exibir snackbar com mensagem
@@ -342,14 +342,14 @@ function showSnackbar(text, color = 'success') {
   snackbar.value = {
     show: true,
     text,
-    color
-  };
+    color,
+  }
 }
 
 // Carregar dados ao montar o componente
 onMounted(() => {
-  loadProfileData();
-});
+  loadProfileData()
+})
 </script>
 
 <style scoped>

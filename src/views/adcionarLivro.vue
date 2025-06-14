@@ -1,168 +1,186 @@
 <template>
-  <div class="bookshelf-container d-flex justify-center">
-    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 90%">
+  <div class="bookshelf-container fill-height d-flex justify-center">
+    <!-- Container principal com largura controlada -->
+    <div class="main-container">
       <!-- Título -->
-      <h1 class="text-h3 font-weight-bold mb-8 text-center bookshelf-title">
+      <h1 class="text-h3 font-weight-bold mb-6 text-center bookshelf-title">
         <span class="page-title">🔎 Adicionar Livros</span>
       </h1>
 
-      <!-- Campo de busca + botão -->
-      <v-row class="d-flex justify-center mb-1">
-        <v-col cols="12" md="6" lg="5">
-          <BaseTextField
-            v-model="searchQuery"
-            label="Digite o nome do livro ou autor"
-            density="comfortable"
-            @keyup.enter="fetchBooks"
-            class="search-field rounded-lg mb-3"
-            prepend-inner-icon="mdi-magnify"
-          />
-          <v-btn
-            @click="fetchBooks"
-            color="primary"
-            block
-            class="search-button"
-            size="large"
-            elevation="2"
-          >
-            <v-icon class="mr-2">mdi-book-search</v-icon>
-            Pesquisar
-          </v-btn>
-        </v-col>
-      </v-row>
+      <!-- Campo de busca centralizado -->
+      <div class="search-container mb-6">
+        <v-row justify="center">
+          <v-col cols="12" md="8" lg="6">
+            <BaseTextField
+              v-model="searchQuery"
+              label="Digite o nome do livro ou autor"
+              density="comfortable"
+              @keyup.enter="fetchBooks"
+              class="search-field rounded-lg mb-4 text-text"
+              prepend-inner-icon="mdi-magnify"
+              clearable
+              elevated
+              variant="outlined"
+            />
+            <v-btn
+              @click="fetchBooks"
+              color="primary"
+              block
+              class="search-button"
+              size="large"
+              variant="elevated"
+              rounded="lg"
+            >
+              <v-icon class="mr-2">mdi-book-search</v-icon>
+              Pesquisar
+            </v-btn>
+          </v-col>
+        </v-row>
+      </div>
 
-      <!-- Notificação de sucesso -->
-      <v-snackbar v-model="showNotification" color="success" timeout="3000" location="top">
-        <div class="d-flex align-center">
-          <v-icon class="mr-2">mdi-check-circle</v-icon>
-          <span>{{ notificationText }}</span>
-        </div>
-      </v-snackbar>
+      <!-- Progress bar -->
+      <v-progress-linear v-if="loading" indeterminate color="accent" class="mb-4" />
 
-      <!-- Resultados da busca -->
-      <v-row v-if="books.length" class="mt-6" justify="center" dense>
-        <v-col
-          v-for="(book, index) in books"
-          :key="book.id"
-          cols="12"
-          sm="6"
-          md="4"
-          lg="3"
-          class="d-flex justify-center"
-          v-motion
-          :initial="{ opacity: 0, y: 50 }"
-          :enter="{ opacity: 1, y: 0, transition: { delay: 100 * index } }"
-        >
-          <v-card class="ma-4 rounded-xl book-card" width="280" elevation="4">
-            <div class="book-cover-container">
-              <v-img
-                :src="book.volumeInfo.imageLinks?.thumbnail || '/placeholder-book.png'"
-                :alt="book.volumeInfo.title"
-                height="200"
-                :cover="false"
-                style="object-fit: contain"
-                class="book-cover"
-              />
-            </div>
-            <v-card-title class="text-subtitle-1 font-weight-bold text-truncate book-title">
-              {{ book.volumeInfo.title }}
-            </v-card-title>
-            <v-card-subtitle class="text-caption text-truncate book-author">
-              <strong>Autor(es):</strong>
-              {{ book.volumeInfo.authors?.join(', ') || 'Desconhecido' }}
-            </v-card-subtitle>
-
-            <!-- Seletor de status -->
-            <v-card-text class="pb-0">
-              <v-select
-                v-model="book.readingStatus"
-                :items="statusOptions"
-                label="Status de leitura"
-                variant="outlined"
-                density="compact"
-                item-title="label"
-                item-value="value"
-                prepend-inner-icon="mdi-bookmark"
-              >
-                <template v-slot:selection="{ item }">
-                  <div class="d-flex align-center">
-                    <v-icon :color="getStatusColor(book.readingStatus)" size="small" class="mr-1">
-                      {{ getStatusIcon(book.readingStatus) }}
-                    </v-icon>
-                    {{ getStatusLabel(book.readingStatus) }}
-                  </div>
-                </template>
-                <template v-slot:item="{ item, props }">
-                  <v-list-item v-bind="props">
-                    <template v-slot:prepend>
-                      <v-icon :color="item?.raw?.color || 'grey'">{{
-                        item?.raw?.icon || 'mdi-bookmark-outline'
-                      }}</v-icon>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-select>
-            </v-card-text>
-
-            <v-card-actions class="d-flex justify-center mb-2">
-              <v-btn
-                @click="addToBookshelf(book)"
-                color="primary"
-                variant="elevated"
-                prepend-icon="mdi-plus"
-                size="small"
-              >
-                Adicionar à estante
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <!-- Mensagem quando não há resultados após uma pesquisa -->
-      <v-row class="d-flex justify-center" v-else-if="hasSearched && !loading && !books.length">
-        <v-col cols="12" md="6" lg="5">
-          <v-card class="mt-6 text-center empty-results-card pa-8">
-            <v-icon size="64" color="info" class="mb-4">mdi-book-search-outline</v-icon>
-            <p class="text-h6 mb-4">Nenhum livro encontrado.</p>
-            <p class="text-body-2">
-              Tente usar palavras-chave diferentes ou verifique a ortografia do título ou autor.
-            </p>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <!-- Mensagem inicial antes de pesquisar -->
-      <v-row class="d-flex justify-center" v-else-if="!hasSearched && !loading">
-        <v-col cols="12" md="6" lg="5" class="d-flex justify-center">
-          <v-card class="text-center empty-results-card pa-8">
-            <v-icon size="64" color="primary" class="mb-4">mdi-bookshelf</v-icon>
-            <p class="text-h6 mb-4">
-              Digite o título do livro ou o nome do autor para começar a busca.
-            </p>
-            <p class="text-body-2">
-              Você pode adicionar múltiplos livros à sua estante e definir o status de leitura para
-              cada um.
-            </p>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <v-progress-linear
-        v-if="loading"
-        indeterminate
-        color="accent"
-        class="mt-3"
-        style="width: 100%"
-      />
-      <v-alert v-if="error" type="error" class="mt-3" color="error">
+      <!-- Alert de erro -->
+      <v-alert v-if="error" type="error" class="mb-4" color="error">
         {{ error }}
       </v-alert>
-    </v-card>
+
+      <!-- Container dos cards de resultados alinhado com BookshelfView -->
+      <div v-if="books.length" class="books-container">
+        <div class="books-grid">
+          <div
+            v-for="(book, index) in books"
+            :key="book.id"
+            class="book-item"
+            v-motion
+            :initial="{ opacity: 0, y: 50 }"
+            :enter="{ opacity: 1, y: 0, transition: { delay: 100 * index } }"
+          >
+            <v-card class="book-card mx-auto" elevation="2">
+              <div class="book-cover-container">
+                <v-img
+                  :src="book.volumeInfo.imageLinks?.thumbnail || '/placeholder-book.png'"
+                  :alt="book.volumeInfo.title"
+                  height="240"
+                  contain
+                  class="book-cover"
+                />
+              </div>
+
+              <v-card-item class="pa-4">
+                <v-card-title class="card-title text-h6 mb-2 line-clamp-2">
+                  {{ book.volumeInfo.title }}
+                </v-card-title>
+
+                <v-card-subtitle class="text-body-2 mb-3 line-clamp-1">
+                  {{ book.volumeInfo.authors?.join(', ') || 'Autor desconhecido' }}
+                </v-card-subtitle>
+
+                <!-- Seletor de status -->
+                <div class="mb-3">
+                  <v-select
+                    v-model="book.readingStatus"
+                    :items="statusOptions"
+                    label="Status de leitura"
+                    variant="outlined"
+                    density="compact"
+                    rounded="lg"
+                    color="primary"
+                    item-title="label"
+                    item-value="value"
+                    prepend-inner-icon="mdi-bookmark"
+                    hide-details
+                  >
+                    <template v-slot:selection="{ item }">
+                      <div class="d-flex align-center">
+                        <v-icon
+                          :color="getStatusColor(book.readingStatus)"
+                          size="small"
+                          class="mr-1"
+                        >
+                          {{ getStatusIcon(book.readingStatus) }}
+                        </v-icon>
+                        {{ getStatusLabel(book.readingStatus) }}
+                      </div>
+                    </template>
+                    <template v-slot:item="{ item, props }">
+                      <v-list-item v-bind="props">
+                        <template v-slot:prepend>
+                          <v-icon :color="item?.raw?.color || 'grey'">{{
+                            item?.raw?.icon || 'mdi-bookmark-outline'
+                          }}</v-icon>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-select>
+                </div>
+
+                <!-- Botão de adicionar -->
+                <div class="d-flex justify-center">
+                  <v-btn
+                    @click="addToBookshelf(book)"
+                    color="primary"
+                    variant="elevated"
+                    prepend-icon="mdi-plus"
+                    size="small"
+                    rounded="xl"
+                    block
+                  >
+                    Adicionar à estante
+                  </v-btn>
+                </div>
+              </v-card-item>
+            </v-card>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mensagem quando não há resultados após uma pesquisa -->
+      <div v-else-if="hasSearched && !loading && !books.length" class="empty-results-container">
+        <v-row justify="center">
+          <v-col cols="12" md="8" lg="6">
+            <v-card class="pa-8 text-center empty-results-card">
+              <v-icon size="64" color="info" class="mb-4">mdi-book-search-outline</v-icon>
+              <p class="text-h6 mb-4">Nenhum livro encontrado.</p>
+              <p class="text-body-2">
+                Tente usar palavras-chave diferentes ou verifique a ortografia do título ou autor.
+              </p>
+            </v-card>
+          </v-col>
+        </v-row>
+      </div>
+
+      <!-- Mensagem inicial antes de pesquisar -->
+      <div v-else-if="!hasSearched && !loading" class="empty-results-container">
+        <v-row justify="center">
+          <v-col cols="12" md="8" lg="6">
+            <v-card class="pa-8 text-center empty-results-card">
+              <v-icon size="64" color="primary" class="mb-4">mdi-bookshelf</v-icon>
+              <p class="text-h6 mb-4">
+                Digite o título do livro ou o nome do autor para começar a busca.
+              </p>
+              <p class="text-body-2">
+                Você pode adicionar múltiplos livros à sua estante e definir o status de leitura
+                para cada um.
+              </p>
+            </v-card>
+          </v-col>
+        </v-row>
+      </div>
+    </div>
+
+    <!-- Notificação de sucesso -->
+    <v-snackbar v-model="showNotification" color="success" timeout="3000" location="top">
+      <div class="d-flex align-center">
+        <v-icon class="mr-2">mdi-check-circle</v-icon>
+        <span>{{ notificationText }}</span>
+      </div>
+    </v-snackbar>
 
     <!-- Diálogo de adição com sucesso -->
     <v-dialog v-model="showSuccessDialog" max-width="400px">
-      <v-card class="pa-4">
+      <v-card class="pa-4 rounded-xl">
         <v-card-title class="text-h5 text-center">Livro adicionado!</v-card-title>
         <v-card-text class="text-center">
           <v-icon color="success" size="64" class="mb-4">mdi-check-circle</v-icon>
@@ -170,17 +188,19 @@
           <p>Deseja ir para sua estante ou continuar adicionando livros?</p>
         </v-card-text>
         <v-card-actions class="justify-center">
-          <v-btn color="primary" variant="tonal" @click="continueAdding">
+          <v-btn color="primary" variant="tonal" @click="continueAdding" rounded="xl">
             Continuar Adicionando
           </v-btn>
-          <v-btn color="primary" variant="elevated" @click="goToBookshelf"> Ver Estante </v-btn>
+          <v-btn color="primary" variant="elevated" @click="goToBookshelf" rounded="xl">
+            Ver Estante
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <!-- Novo diálogo para definir status e datas -->
+    <!-- Diálogo para definir status e datas -->
     <v-dialog v-model="showStatusDialog" max-width="500px" persistent>
-      <v-card class="pa-4">
+      <v-card class="pa-4 rounded-xl">
         <v-card-title class="text-h5 text-center">
           <v-icon color="primary" class="mr-2">mdi-book-settings</v-icon>
           Definir Status do Livro
@@ -196,6 +216,8 @@
             label="Status de Leitura"
             variant="outlined"
             density="comfortable"
+            color="primary"
+            rounded="xl"
             class="mb-4"
             item-title="label"
             item-value="value"
@@ -227,6 +249,7 @@
             type="date"
             hint="Deixe em branco para usar a data atual"
             persistent-hint
+            elevated
           />
 
           <!-- Datas de início e fim (para "Já Li") -->
@@ -237,6 +260,7 @@
               type="date"
               hint="Opcional"
               persistent-hint
+              elevated
             />
 
             <BaseTextField
@@ -245,13 +269,14 @@
               type="date"
               hint="Deixe em branco para usar a data atual"
               persistent-hint
+              elevated
             />
           </template>
         </v-card-text>
 
         <v-card-actions class="pt-2">
           <v-spacer></v-spacer>
-          <v-btn variant="elevated" color="primary" @click="confirmAddBook">
+          <v-btn variant="elevated" color="primary" @click="confirmAddBook" rounded="xl">
             Adicionar Livro
           </v-btn>
         </v-card-actions>
@@ -429,38 +454,62 @@ const getStatusLabel = (status: number): string => {
   min-height: 100vh;
   background: rgb(var(--v-theme-background));
   padding: 1rem;
+  position: relative;
 }
 
-.card-container {
-  background: transparent;
+/* Container principal com largura controlada */
+.main-container {
+  width: 90%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Container de busca centralizado */
+.search-container {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Container para mensagens vazias - centraliza e alinha com o botão */
+.empty-results-container {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Container dos cards alinhado com os filtros */
+.books-container {
+  width: 100%;
+}
+
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  justify-items: center;
+}
+
+.book-item {
+  width: 100%;
+  max-width: 280px;
 }
 
 .book-card {
-  transition:
-    transform 0.3s ease-in-out,
-    box-shadow 0.3s ease-in-out;
-  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+  border-radius: 16px !important;
   overflow: hidden;
-  background-color: rgb(var(--v-theme-surface));
+  background: rgb(var(--v-theme-surface));
+  position: relative;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
 .book-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-.book-cover-container {
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
-  background-color: rgb(var(--v-theme-surface-variant), 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
 }
 
 .bookshelf-title {
@@ -476,41 +525,110 @@ const getStatusLabel = (status: number): string => {
   letter-spacing: -0.5px;
 }
 
-.book-cover {
+.book-cover-container {
   width: 100%;
-  object-fit: contain;
+  height: 240px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.book-cover {
   transition: transform 0.3s ease-in-out;
 }
 
-.book-title {
-  font-size: 1rem;
-  line-height: 1.2rem;
-  padding-top: 12px;
-  padding-bottom: 0;
+.book-card:hover .book-cover {
+  transform: scale(1.05);
 }
 
-.book-author {
-  font-size: 0.8rem;
-  line-height: 1rem;
-  opacity: 0.8;
+.card-title {
+  font-weight: 600;
+  line-height: 1.3;
+  color: rgb(var(--v-theme-primary));
 }
 
-.search-field {
-  background-color: rgb(var(--v-theme-surface));
-  border-radius: 8px;
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .search-button {
-  border-radius: 8px;
   height: 48px;
   font-weight: 500;
   letter-spacing: 0.5px;
 }
 
 .empty-results-card {
-  border-radius: 16px;
-  background-color: rgb(var(--v-theme-surface));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: rgb(var(--v-theme-surface));
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   width: 100%;
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 960px) {
+  .main-container {
+    width: 95%;
+  }
+
+  .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .bookshelf-container {
+    padding: 0.5rem;
+  }
+
+  .main-container {
+    width: 90%;
+  }
+
+  .page-title {
+    font-size: 1.8rem;
+  }
+
+  .books-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .book-item {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  .bookshelf-container {
+    padding: 0.25rem;
+  }
+
+  .page-title {
+    font-size: 1.6rem;
+  }
+
+  .book-cover-container {
+    height: 200px;
+  }
 }
 </style>
