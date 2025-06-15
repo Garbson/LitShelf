@@ -1,34 +1,42 @@
 <template>
   <div>
-    <!-- Navbar sempre no topo e visível apenas quando autenticado -->
-    <div v-if="isAuthenticated" class="navbar-container">
+    <!-- Navbar visível apenas quando autenticado E não está carregando E não está em rota de auth -->
+    <div v-if="finalNavbarCondition" class="navbar-container">
       <NavbarTeste />
     </div>
     <!-- Conteúdo principal -->
-    <div
-      class="mx-auto d-flex justify-center teste"
-      style="width: 100% !important; height: 100%"
-    >
+    <div class="mx-auto d-flex justify-center teste" style="width: 100% !important; height: 100%">
       <router-view />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { useAuthStore } from "@/stores/useAuthStore";
-import { useBookshelfStore } from "@/stores/useBookshelfStore";
-import { supabase } from "@/supabase";
-import NavbarTeste from "@/views/NavBarTest.vue";
-import { computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useAuthStore } from '@/stores/useAuthStore'
+import { useBookshelfStore } from '@/stores/useBookshelfStore'
+import { supabase } from '@/supabase'
+import NavbarTeste from '@/views/NavBarTest.vue'
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 
 // Obtenha o estado de autenticação da store
-const authStore = useAuthStore();
-const bookshelfStore = useBookshelfStore();
-const route = useRoute();
-const isAuthenticated = computed(() => !!authStore.user);
+const authStore = useAuthStore()
+const bookshelfStore = useBookshelfStore()
+const route = useRoute()
 
+// CONDIÇÃO MELHORADA: Só mostra navbar se autenticado E não está carregando
+const shouldShowNavbar = computed(() => {
+  return !authStore.loading && !!authStore.user
+})
 
+// Rotas onde o navbar NUNCA deve aparecer (segurança extra)
+const authRoutes = ['/', '/login', '/signup']
+const isAuthRoute = computed(() => authRoutes.includes(route.path))
+
+// Condição final: não mostrar navbar em rotas de auth mesmo se autenticado
+const finalNavbarCondition = computed(() => {
+  return shouldShowNavbar.value && !isAuthRoute.value
+})
 
 // Função para garantir que o perfil do usuário exista
 const ensureUserProfile = async () => {
@@ -39,46 +47,48 @@ const ensureUserProfile = async () => {
         .from('profiles')
         .select('id')
         .eq('id', authStore.user.id)
-        .single();
-      
+        .single()
+
       // Se não houver perfil existente, criar um novo
-      if (fetchError && fetchError.code === 'PGRST116') { // PGRST116 = Nenhum resultado encontrado        
+      if (fetchError && fetchError.code === 'PGRST116') {
+        // PGRST116 = Nenhum resultado encontrado
         // Usando os campos corretos que existem na tabela profiles
         const profileData = {
           id: authStore.user.id,
-          name: authStore.user.user_metadata?.full_name || authStore.user.email?.split('@')[0] || 'Usuário',
+          name:
+            authStore.user.user_metadata?.full_name ||
+            authStore.user.email?.split('@')[0] ||
+            'Usuário',
           profile_picture_url: authStore.user.user_metadata?.avatar_url || null,
           reading_goal: 0, // Valor padrão para meta de leitura
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([profileData]);
-        
+          updated_at: new Date().toISOString(),
+        }
+
+        const { error: insertError } = await supabase.from('profiles').insert([profileData])
+
         if (insertError) {
-          console.error('Erro ao criar perfil do usuário:', insertError);
+          console.error('Erro ao criar perfil do usuário:', insertError)
         }
       }
     } catch (error) {
-      console.error('Erro ao verificar/criar perfil:', error);
+      console.error('Erro ao verificar/criar perfil:', error)
     }
   }
-};
+}
 
 // Inicializa o listener de autenticação quando o app é carregado
 onMounted(async () => {
   // Configura o listener para manter o estado de autenticação mesmo após o reload
-  authStore.setupAuthListener();
-  
+  authStore.setupAuthListener()
+
   // Verificar a sessão atual
-  const { data } = await supabase.auth.getSession();
+  const { data } = await supabase.auth.getSession()
   if (data.session && data.session.user) {
     // Se temos um usuário já autenticado, garantir que o perfil existe
-    setTimeout(ensureUserProfile, 1000); // Pequeno atraso para garantir que authStore.user seja atualizado
+    setTimeout(ensureUserProfile, 1000) // Pequeno atraso para garantir que authStore.user seja atualizado
   }
-});
+})
 </script>
 
 <style scoped>
