@@ -14,16 +14,20 @@ export const useAuthStore = defineStore('auth', () => {
   // Login com Google
   const loginWithGoogle = async () => {
     loading.value = true
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/bookshelf`,
+      },
     })
+
     if (error) {
       console.error('Erro no login com Google:', error.message)
       loading.value = false
-      // Aqui você pode adicionar feedback para o usuário (snackbar, etc.)
       return false
     }
-    // O redirecionamento ou atualização do estado será tratado pelo onAuthStateChange
+
+    // O redirecionamento será feito automaticamente pelo Supabase
     return true
   }
 

@@ -229,10 +229,16 @@ const signupWithGoogle = async () => {
     googleLoading.value = true
     errorMessage.value = ''
     successMessage.value = ''
-    // Implementação futura
-    errorMessage.value = 'Registro com Google será implementado em breve.'
+
+    const result = await authStore.loginWithGoogle()
+
+    if (!result) {
+      errorMessage.value = 'Erro ao registrar com Google. Por favor, tente novamente.'
+    }
+    // O redirecionamento será tratado automaticamente pelo Supabase OAuth
   } catch (error: any) {
-    errorMessage.value = 'Erro ao registrar com Google.'
+    console.error('Erro ao registrar com Google:', error)
+    errorMessage.value = 'Erro ao registrar com Google. Por favor, tente novamente.'
   } finally {
     googleLoading.value = false
   }
