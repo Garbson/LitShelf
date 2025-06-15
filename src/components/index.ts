@@ -1,4 +1,4 @@
-import { App as VueApp } from 'vue' // Import correto do tipo 'App'
+import type { App as VueApp } from 'vue'
 import BaseButton from './BaseButton.vue'
 import BaseCard from './BaseCard.vue'
 import BaseDialog from './BaseDialog.vue'

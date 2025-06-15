@@ -19,7 +19,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useBookshelfStore } from "@/stores/useBookshelfStore";
 import { supabase } from "@/supabase";
 import NavbarTeste from "@/views/NavBarTest.vue";
-import { computed, onMounted, watch } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 
 // Obtenha o estado de autenticação da store
