@@ -1,56 +1,51 @@
 <template>
-  <div class="friends-container fill-height">
-    <v-container fluid>
-      <v-row>
-        <v-col cols="12">
-          <div class="text-h3 font-weight-bold mb-6 text-center">
-            <span class="page-title">👥 Amigos & Conexões Literárias</span>
-          </div>
-
-          <p class="text-subtitle-1 text-center mb-8 theme-text">
-            Conecte-se com outros leitores, descubra livros e compartilhe sua jornada literária
-          </p>
-        </v-col>
-      </v-row>
+  <div class="friends-container">
+    <div class="container mx-auto">
+      <div class="text-center mb-8">
+        <h1 class="page-title mb-2">Amigos & Comunidade</h1>
+        <p class="text-subtitle-1 text-medium-emphasis">
+          Conecte-se com outros leitores e descubra novas leituras
+        </p>
+      </div>
 
       <v-row>
-        <!-- Primeira coluna: Pesquisa de amigos e solicitações -->
+        <!-- Primeira coluna: Busca e solicitações -->
         <v-col cols="12" lg="3" md="4">
-          <v-card class="rounded-xl pa-4 mb-6 animate-slide-up" elevation="2">
-            <v-card-title class="text-h6 font-weight-bold">
+          <!-- Card de busca -->
+          <v-card
+            class="rounded-xl pa-4 mb-6 animate-slide-up"
+            elevation="2"
+            :style="{ animationDelay: '100ms' }"
+          >
+            <v-card-title class="text-h6 font-weight-bold px-0 pb-3">
               <v-icon icon="mdi-account-search" class="me-2" color="primary" />
-              Encontrar amigos
+              Encontrar Amigos
             </v-card-title>
 
-            <v-card-text>
-              <v-tabs v-model="searchTab" bg-color="transparent">
-                <v-tab value="search" class="text-subtitle-2">Buscar</v-tab>
-              </v-tabs>
-
-              <v-divider class="mb-3 mt-1"></v-divider>
-
-              <v-window class="py-2" v-model="searchTab">
-                <!-- Aba de busca -->
-                <v-window-item value="search">
+            <v-card-text class="px-0">
+              <v-window v-model="searchTab">
+                <v-window-item :value="0">
                   <v-form @submit.prevent="searchUsers">
                     <v-text-field
                       v-model="searchQuery"
-                      label="Buscar por ID, email ou nome"
+                      label="Email do usuário"
+                      prepend-inner-icon="mdi-email-search"
                       variant="outlined"
-                      density="comfortable"
-                      prepend-inner-icon="mdi-magnify"
-                      append-inner-icon="mdi-send"
-                      rounded="lg"
-                      hide-details
-                      class="mb-3"
-                      @click:append-inner="searchUsers"
-                      placeholder="Digite o ID, email ou nome do usuário"
+                      clearable
+                      @keyup.enter="searchUsers"
+                      :loading="isLoadingAllUsers"
                     />
-
-                    <p class="text-caption mb-4">
-                      Digite o email exato, ID completo ou nome do usuário para adicionar como
-                      amigo.
-                    </p>
+                    <v-btn
+                      type="submit"
+                      color="primary"
+                      block
+                      variant="elevated"
+                      prepend-icon="mdi-magnify"
+                      :loading="isLoadingAllUsers"
+                      :disabled="!searchQuery?.trim()"
+                    >
+                      Buscar
+                    </v-btn>
                   </v-form>
                 </v-window-item>
               </v-window>
@@ -103,145 +98,180 @@
             </v-card-text>
           </v-card>
 
-          <!-- Solicitações pendentes -->
+          <!-- Solicitações recebidas -->
           <v-card
-            class="rounded-xl pa-4 mb-6 animate-slide-up"
-            elevation="2"
+            class="rounded-xl pa-4 mb-6 animate-slide-up modern-card"
+            elevation="3"
             :style="{ animationDelay: '200ms' }"
           >
             <v-card-title
-              class="d-flex align-center justify-space-between text-h6 font-weight-bold"
+              class="d-flex align-center justify-space-between text-h6 font-weight-bold px-0 pb-3"
             >
-              <div>
-                <v-icon icon="mdi-account-clock" class="me-2" color="warning" />
-                Solicitações recebidas
+              <div class="d-flex align-center">
+                <div class="icon-wrapper warning mr-3">
+                  <v-icon color="white" size="20">mdi-account-clock</v-icon>
+                </div>
+                <div>
+                  <h3 class="text-h6 mb-0">Solicitações Recebidas</h3>
+                  <p class="text-caption text-medium-emphasis mb-0">
+                    Pessoas que querem ser suas amigas
+                  </p>
+                </div>
               </div>
               <v-chip
-                color="warning"
-                size="small"
                 v-if="friendsStore.friendRequests && friendsStore.friendRequests.length > 0"
+                color="warning"
+                variant="flat"
+                size="small"
+                class="font-weight-bold"
               >
                 {{ friendsStore.friendRequests.length }}
               </v-chip>
             </v-card-title>
 
-            <v-card-text>
-              <v-list
+            <v-card-text class="px-0">
+              <div
                 v-if="friendsStore.friendRequests && friendsStore.friendRequests.length > 0"
-                class="pa-0"
+                class="requests-grid"
               >
-                <v-list-item
+                <div
                   v-for="request in friendsStore.friendRequests"
                   :key="request.id"
-                  class="mb-2 rounded-lg request-item"
+                  class="request-card received-request"
                 >
-                  <v-list-item-title>{{ request.fromName || request.fromEmail }}</v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">{{
-                    request.fromEmail
-                  }}</v-list-item-subtitle>
+                  <div class="request-content">
+                    <div class="user-info">
+                      <v-avatar size="48" color="primary" class="user-avatar">
+                        <v-icon color="white" size="24">mdi-account</v-icon>
+                      </v-avatar>
+                      <div class="user-details">
+                        <h4 class="user-name">{{ request.fromName || 'Usuário' }}</h4>
+                        <p class="user-email">{{ request.fromEmail }}</p>
+                        <p class="request-time">{{ formatTimeAgo(request.createdAt) }}</p>
+                      </div>
+                    </div>
 
-                  <template v-slot:append>
-                    <div class="d-flex gap-2">
+                    <div class="request-actions">
                       <v-btn
-                        variant="tonal"
+                        variant="flat"
                         color="success"
                         size="small"
-                        icon="mdi-check"
+                        class="action-btn accept-btn"
                         @click="acceptFriendRequest(request.id)"
-                      />
+                      >
+                        <v-icon size="16" class="mr-1">mdi-check</v-icon>
+                        Aceitar
+                      </v-btn>
                       <v-btn
                         variant="outlined"
                         color="error"
                         size="small"
-                        icon="mdi-close"
+                        class="action-btn reject-btn"
                         @click="rejectFriendRequest(request.id)"
-                      />
+                      >
+                        <v-icon size="16" class="mr-1">mdi-close</v-icon>
+                        Rejeitar
+                      </v-btn>
                     </div>
-                  </template>
-                </v-list-item>
-              </v-list>
+                  </div>
+                </div>
+              </div>
 
-              <div v-else class="text-center py-4 text-medium-emphasis">
-                <v-icon icon="mdi-check-circle-outline" size="40" color="grey" />
-                <p class="mt-2">Nenhuma solicitação pendente.</p>
+              <div v-else class="empty-state">
+                <div class="empty-icon">
+                  <v-icon size="48" color="grey-lighten-1">mdi-check-circle-outline</v-icon>
+                </div>
+                <h4 class="empty-title">Nenhuma solicitação pendente</h4>
+                <p class="empty-subtitle">
+                  Quando alguém te enviar uma solicitação de amizade, ela aparecerá aqui!
+                </p>
               </div>
             </v-card-text>
           </v-card>
 
           <!-- Solicitações enviadas -->
           <v-card
-            class="rounded-xl pa-4 mb-6 animate-slide-up"
-            elevation="2"
+            class="rounded-xl pa-4 mb-6 animate-slide-up modern-card"
+            elevation="3"
             :style="{ animationDelay: '300ms' }"
           >
             <v-card-title
-              class="d-flex align-center justify-space-between text-h6 font-weight-bold"
+              class="d-flex align-center justify-space-between text-h6 font-weight-bold px-0 pb-3"
             >
-              <div>
-                <v-icon icon="mdi-account-arrow-right" class="me-2" color="info" />
-                Solicitações enviadas
+              <div class="d-flex align-center">
+                <div class="icon-wrapper info mr-3">
+                  <v-icon color="white" size="20">mdi-account-arrow-right</v-icon>
+                </div>
+                <div>
+                  <h3 class="text-h6 mb-0">Solicitações Enviadas</h3>
+                  <p class="text-caption text-medium-emphasis mb-0">
+                    Aguardando resposta dos usuários
+                  </p>
+                </div>
               </div>
               <v-chip
-                color="info"
-                size="small"
                 v-if="
                   friendsStore.sentRequestsPending && friendsStore.sentRequestsPending.length > 0
                 "
+                color="info"
+                variant="flat"
+                size="small"
+                class="font-weight-bold"
               >
                 {{ friendsStore.sentRequestsPending.length }}
               </v-chip>
             </v-card-title>
 
-            <v-card-text>
-              <v-list
+            <v-card-text class="px-0">
+              <div
                 v-if="
                   friendsStore.sentRequestsPending && friendsStore.sentRequestsPending.length > 0
                 "
-                class="pa-0"
+                class="requests-grid"
               >
-                <v-list-item
+                <div
                   v-for="request in friendsStore.sentRequestsPending"
                   :key="request.id"
-                  class="mb-2 rounded-lg request-item"
+                  class="request-card sent-request"
                 >
-                  <v-list-item-title>{{ request.senderName || 'Usuário' }}</v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
-                    Para: {{ request.senderEmail }}
-                    <v-tooltip location="top">
-                      <template v-slot:activator="{ props }">
-                        <v-icon v-bind="props" size="small" color="info" class="ms-1">
-                          mdi-information-outline
-                        </v-icon>
-                      </template>
-                      <span
-                        >ID:
-                        {{
-                          request.user_id_1 === authStore.userId
-                            ? request.user_id_2
-                            : request.user_id_1
-                        }}</span
-                      >
-                    </v-tooltip>
-                  </v-list-item-subtitle>
+                  <div class="request-content">
+                    <div class="user-info">
+                      <v-avatar size="48" color="info" class="user-avatar">
+                        <v-icon color="white" size="24">mdi-account</v-icon>
+                      </v-avatar>
+                      <div class="user-details">
+                        <h4 class="user-name">{{ request.senderName || 'Usuário' }}</h4>
+                        <p class="user-email">Para: {{ request.senderEmail }}</p>
+                        <p class="request-time">{{ formatTimeAgo(request.createdAt) }}</p>
+                      </div>
+                    </div>
 
-                  <template v-slot:append>
-                    <div class="d-flex gap-2">
-                      <v-chip size="small" color="info">Pendente</v-chip>
+                    <div class="request-actions">
+                      <v-chip size="small" color="info" variant="flat" class="status-chip">
+                        <v-icon size="14" class="mr-1">mdi-clock-outline</v-icon>
+                        Pendente
+                      </v-chip>
                       <v-btn
                         variant="outlined"
                         color="error"
                         size="small"
-                        icon="mdi-close"
+                        class="action-btn cancel-btn"
                         @click="cancelFriendRequest(request.id)"
-                      />
+                      >
+                        <v-icon size="16" class="mr-1">mdi-close</v-icon>
+                        Cancelar
+                      </v-btn>
                     </div>
-                  </template>
-                </v-list-item>
-              </v-list>
+                  </div>
+                </div>
+              </div>
 
-              <div v-else class="text-center py-4 text-medium-emphasis">
-                <v-icon icon="mdi-account-arrow-right-outline" size="40" color="grey" />
-                <p class="mt-2">Nenhuma solicitação enviada.</p>
+              <div v-else class="empty-state">
+                <div class="empty-icon">
+                  <v-icon size="48" color="grey-lighten-1">mdi-account-arrow-right-outline</v-icon>
+                </div>
+                <h4 class="empty-title">Nenhuma solicitação enviada</h4>
+                <p class="empty-subtitle">Procure por usuários e envie solicitações de amizade!</p>
               </div>
             </v-card-text>
           </v-card>
@@ -288,7 +318,9 @@
                           <v-img v-if="friend.photoURL" :src="friend.photoURL" />
                           <v-icon v-else color="white" size="40">mdi-account</v-icon>
                         </v-avatar>
-                        <v-card-title>{{ friend.name || friend.email.split('@')[0] }}</v-card-title>
+                        <v-card-title>{{
+                          friend.name || friend.email?.split('@')[0]
+                        }}</v-card-title>
                         <v-card-subtitle>{{ friend.email }}</v-card-subtitle>
                       </v-card-item>
 
@@ -327,117 +359,33 @@
               </div>
             </v-card-text>
           </v-card>
-
-          <!-- Card separado para exibir a estante do amigo selecionado -->
-          <v-card v-if="selectedFriend" class="rounded-xl pa-4 mt-4 animate-slide-up" elevation="2">
-            <v-card-title
-              class="d-flex align-center justify-space-between text-h6 font-weight-bold"
-            >
-              <div class="d-flex align-center">
-                <v-avatar
-                  :color="selectedFriend.photoURL ? undefined : 'primary'"
-                  size="40"
-                  class="me-2"
-                >
-                  <v-img v-if="selectedFriend.photoURL" :src="selectedFriend.photoURL" />
-                  <v-icon v-else color="white">mdi-account</v-icon>
-                </v-avatar>
-                <span>
-                  Estante de {{ selectedFriend.name || selectedFriend.email.split('@')[0] }}
-                </span>
-              </div>
-              <v-btn icon="mdi-close" variant="text" @click="closeFriendBookshelf"></v-btn>
-            </v-card-title>
-
-            <v-card-text>
-              <v-row v-if="friendBooks.length > 0">
-                <v-col
-                  v-for="book in friendBooks"
-                  :key="book.id"
-                  cols="12"
-                  sm="6"
-                  md="4"
-                  lg="3"
-                  class="d-flex"
-                >
-                  <v-card width="100%" class="friend-book-card" hover elevation="2">
-                    <v-img
-                      :src="book.coverImage || '/placeholder-book.png'"
-                      height="200"
-                      cover
-                      class="align-end"
-                    >
-                      <v-chip
-                        v-if="book.status !== undefined"
-                        :color="getStatusColor(book.status)"
-                        size="small"
-                        class="ma-2"
-                      >
-                        {{ getStatusText(book.status) }}
-                      </v-chip>
-                    </v-img>
-
-                    <v-card-title class="text-subtitle-1 text-truncate">
-                      {{ book.title }}
-                    </v-card-title>
-
-                    <v-card-subtitle class="text-truncate">
-                      {{ book.author }}
-                    </v-card-subtitle>
-
-                    <v-card-text>
-                      <div v-if="book.rating || book.avaliacao" class="mb-1">
-                        <v-rating
-                          :model-value="book.rating || book.avaliacao"
-                          readonly
-                          size="small"
-                          color="amber"
-                          half-increments
-                          density="compact"
-                        ></v-rating>
-                      </div>
-
-                      <div v-if="book.genre" class="mb-1 text-caption">
-                        <strong>Gênero:</strong> {{ book.genre }}
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <div v-else class="text-center py-8 text-medium-emphasis">
-                <v-icon icon="mdi-bookshelf" size="64" color="grey" />
-                <p class="text-h6 mt-4">Estante vazia</p>
-                <p class="text-body-1">Este usuário ainda não adicionou livros à sua estante.</p>
-              </div>
-            </v-card-text>
-          </v-card>
         </v-col>
       </v-row>
-    </v-container>
+    </div>
 
-    <!-- Diálogo de confirmação para remover amigo -->
-    <v-dialog v-model="confirmRemoveFriend" max-width="400" transition="dialog-bottom-transition">
-      <v-card class="remove-dialog rounded-xl">
-        <v-card-title class="bg-error text-white pa-4 text-h6">Confirmar remoção</v-card-title>
-        <v-card-text class="pt-4 pb-2">
-          <p>Tem certeza que deseja remover esta pessoa da sua lista de amigos?</p>
+    <!-- Diálogos -->
+    <v-dialog v-model="confirmRemoveFriend" max-width="400" persistent>
+      <v-card class="remove-dialog">
+        <v-card-title class="bg-error text-white pa-4">
+          <v-icon icon="mdi-account-remove" class="me-2" />
+          Remover Amigo
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <p>Tem certeza que deseja remover este amigo? Esta ação não pode ser desfeita.</p>
         </v-card-text>
-        <v-card-actions class="pa-4">
-          <v-spacer></v-spacer>
-          <v-btn color="primary" variant="text" @click="confirmRemoveFriend = false"
-            >Cancelar</v-btn
-          >
-          <v-btn color="error" @click="removeFriendConfirmed">Remover</v-btn>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer />
+          <v-btn variant="outlined" @click="confirmRemoveFriend = false"> Cancelar </v-btn>
+          <v-btn color="error" variant="flat" @click="removeFriendConfirmed"> Remover </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
-    <!-- Snackbar para notificações -->
-    <v-snackbar v-model="showSnackbar" :color="snackbarColor" timeout="3000">
+    <!-- Snackbar -->
+    <v-snackbar v-model="showSnackbar" :color="snackbarColor" timeout="4000">
       {{ snackbarText }}
       <template v-slot:actions>
-        <v-btn variant="text" icon="mdi-close" @click="showSnackbar = false"></v-btn>
+        <v-btn variant="text" icon="mdi-close" @click="showSnackbar = false" />
       </template>
     </v-snackbar>
   </div>
@@ -449,25 +397,55 @@ import { useFriendsStore } from '@/stores/useFriendsStore'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-const authStore = useAuthStore()
+// Stores
 const friendsStore = useFriendsStore()
+const authStore = useAuthStore()
 const router = useRouter()
+
+// Estados reativos
+const searchTab = ref(0)
 const searchQuery = ref('')
 const searchResults = ref<any[]>([])
 const displayedUsers = ref<any[]>([])
 const hasSearched = ref(false)
 const isProcessingRequest = ref<Record<string, boolean>>({})
+
+// Estados dos diálogos
+const confirmRemoveFriend = ref(false)
+const friendToRemoveId = ref('')
+
+// Estados das notificações
 const showSnackbar = ref(false)
 const snackbarText = ref('')
 const snackbarColor = ref('success')
-const selectedFriend = ref<any>(null)
-const friendBooks = ref<any[]>([])
-const searchTab = ref('search')
-const confirmRemoveFriend = ref(false)
-const friendToRemoveId = ref('')
+
+// Estados de loading
 const isLoadingAllUsers = ref(false)
 const allUsersLoaded = ref(false)
 const isLoadingAuthUsers = ref(false)
+
+// Função para formatar tempo
+const formatTimeAgo = (date: any) => {
+  if (!date) return ''
+
+  const now = new Date()
+  const requestDate = new Date(date)
+  const diffInMinutes = Math.floor((now.getTime() - requestDate.getTime()) / (1000 * 60))
+
+  if (diffInMinutes < 1) return 'Agora mesmo'
+  if (diffInMinutes < 60) return `${diffInMinutes}m atrás`
+
+  const diffInHours = Math.floor(diffInMinutes / 60)
+  if (diffInHours < 24) return `${diffInHours}h atrás`
+
+  const diffInDays = Math.floor(diffInHours / 24)
+  if (diffInDays < 7) return `${diffInDays}d atrás`
+
+  return requestDate.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+  })
+}
 
 // Buscar usuários pelo email
 const searchUsers = async () => {
@@ -476,12 +454,13 @@ const searchUsers = async () => {
   try {
     hasSearched.value = true
     searchResults.value = []
+    isLoadingAllUsers.value = true
 
     // Usar o método do friendsStore para buscar usuários
     const result = await friendsStore.searchUsers(searchQuery.value.trim())
 
     if (result.users && result.users.length > 0) {
-      searchResults.value = result.users.map((user) => ({
+      searchResults.value = result.users.map((user: any) => ({
         id: user.id,
         email: user.email,
         displayName: user.name,
@@ -495,13 +474,13 @@ const searchUsers = async () => {
   } catch (error) {
     console.error('Erro ao buscar usuários:', error)
     showNotification('Erro ao buscar usuários', 'error')
+  } finally {
+    isLoadingAllUsers.value = false
   }
 }
 
-// Adicione esta função ao seu <script setup>
-
+// Função para abrir diálogo de remoção
 const openRemoveFriendDialog = (friend: any) => {
-  // A função de remoção espera o ID da amizade
   friendToRemoveId.value = friend.friendshipId || friend.id
   confirmRemoveFriend.value = true
 }
@@ -512,15 +491,14 @@ const getFriendshipIcon = (userId: string) => {
 
   if (!user) return 'mdi-account-plus'
 
-  // Ícones baseados no status da amizade
   if (user.friendshipStatus === 'accepted') {
-    return 'mdi-check' // Já é amigo
+    return 'mdi-check'
   } else if (user.friendshipStatus === 'pending') {
-    return user.isSender ? 'mdi-clock-outline' : 'mdi-account-arrow-left' // Pendente
+    return user.isSender ? 'mdi-clock-outline' : 'mdi-account-arrow-left'
   } else if (user.friendshipStatus === 'rejected') {
-    return 'mdi-account-cancel' // Rejeitada
+    return 'mdi-account-cancel'
   } else {
-    return 'mdi-account-plus' // Adicionar amigo
+    return 'mdi-account-plus'
   }
 }
 
@@ -530,19 +508,18 @@ const getFriendshipColor = (userId: string) => {
 
   if (!user) return 'success'
 
-  // Cores baseadas no status da amizade
   if (user.friendshipStatus === 'accepted') {
-    return 'success' // Já é amigo
+    return 'success'
   } else if (user.friendshipStatus === 'pending') {
-    return 'warning' // Pendente
+    return 'warning'
   } else if (user.friendshipStatus === 'rejected') {
-    return 'error' // Rejeitada
+    return 'error'
   } else {
-    return 'primary' // Adicionar amigo
+    return 'primary'
   }
 }
 
-// Lidar com ação de amizade (enviar solicitação, cancelar solicitação, etc)
+// Lidar com ação de amizade
 const handleFriendAction = async (user: any) => {
   if (!authStore.userId) {
     showNotification('Você precisa estar logado para realizar esta ação', 'error')
@@ -553,37 +530,33 @@ const handleFriendAction = async (user: any) => {
     isProcessingRequest.value[user.id] = true
 
     if (user.friendshipStatus === 'accepted') {
-      // Já é amigo, opção de remover
       friendToRemoveId.value = user.friendshipId
       confirmRemoveFriend.value = true
     } else if (user.friendshipStatus === 'pending') {
       if (user.isSender) {
-        // Cancelar solicitação enviada
         const success = await friendsStore.cancelFriendRequest(user.friendshipId)
         if (success) {
           showNotification('Solicitação cancelada com sucesso')
-          await searchUsers() // Recarregar resultados
+          await searchUsers()
         } else {
           showNotification('Erro ao cancelar solicitação', 'error')
         }
       } else {
-        // Aceitar uma solicitação recebida
         const success = await friendsStore.acceptFriendRequest(user.friendshipId)
         if (success) {
           showNotification('Amizade aceita com sucesso!')
-          await searchUsers() // Recarregar resultados
-          await friendsStore.fetchFriends() // Atualizar lista de amigos
+          await searchUsers()
+          await friendsStore.fetchFriends()
         } else {
           showNotification('Erro ao aceitar solicitação', 'error')
         }
       }
     } else {
-      // Enviar nova solicitação
       const result = await friendsStore.sendFriendRequest(user.email)
 
       if (result.success) {
         showNotification('Solicitação de amizade enviada!')
-        await searchUsers() // Recarregar resultados
+        await searchUsers()
       } else if (result.alreadyFriends) {
         showNotification('Vocês já são amigos', 'info')
       } else if (result.pendingRequest) {
@@ -607,7 +580,6 @@ const acceptFriendRequest = async (requestId: string) => {
 
     if (success.success) {
       showNotification('Amizade aceita com sucesso!')
-      // Garantir que a lista de amigos seja atualizada explicitamente
       await friendsStore.fetchFriends()
     } else {
       showNotification('Erro ao aceitar solicitação', 'error')
@@ -625,7 +597,6 @@ const rejectFriendRequest = async (requestId: string) => {
 
     if (success.success) {
       showNotification('Solicitação de amizade rejeitada')
-      // A lista de solicitações será atualizada automaticamente via subscriptions
     } else {
       showNotification('Erro ao rejeitar solicitação', 'error')
     }
@@ -642,7 +613,7 @@ const cancelFriendRequest = async (requestId: string) => {
 
     if (success) {
       showNotification('Solicitação de amizade cancelada')
-      await friendsStore.fetchSentRequests() // Atualizar lista de solicitações enviadas
+      await friendsStore.fetchSentRequests()
     } else {
       showNotification('Erro ao cancelar solicitação', 'error')
     }
@@ -660,59 +631,28 @@ const removeFriendConfirmed = async () => {
     const success = await friendsStore.removeFriend(friendToRemoveId.value)
 
     if (success.success) {
-      // Se o amigo removido era o selecionado, limpar a seleção
-      if (selectedFriend.value && selectedFriend.value.id === friendToRemoveId.value) {
-        selectedFriend.value = null
-        friendBooks.value = []
-      }
-
       showNotification('Amigo removido com sucesso')
+      await friendsStore.fetchFriends()
     } else {
       showNotification('Erro ao remover amigo', 'error')
     }
-
-    confirmRemoveFriend.value = false
   } catch (error) {
     console.error('Erro ao remover amigo:', error)
     showNotification('Erro ao remover amigo', 'error')
+  } finally {
     confirmRemoveFriend.value = false
-  }
-}
-
-const closeFriendBookshelf = () => {
-  selectedFriend.value = null
-  friendBooks.value = []
-}
-
-// Selecionar um amigo
-const selectFriend = (friend: any) => {
-  if (selectedFriend.value && selectedFriend.value.id === friend.id) {
-    selectedFriend.value = null
-    friendBooks.value = []
-  } else {
-    selectedFriend.value = friend
-    loadFriendBooks(friend.id)
+    friendToRemoveId.value = ''
   }
 }
 
 // Ver estante do amigo
 const viewFriendBookshelf = (friend: any) => {
-  // Redirecionar para a página BookshelfView com o ID do amigo como parâmetro
-  router.push(`/bookshelf?friendId=${friend.id}`)
+  router.push(`/bookshelf/${friend.id}`)
 }
 
-// Carregar livros de um amigo
-const loadFriendBooks = async (friendId: string) => {
-  try {
-    friendBooks.value = []
-
-    // Usar o store para carregar os livros do amigo
-    const books = await friendsStore.fetchFriendBooks(friendId)
-    friendBooks.value = books
-  } catch (error) {
-    console.error('Erro ao carregar estante do amigo:', error)
-    showNotification('Erro ao carregar livros', 'error')
-  }
+// Ir para detalhes do livro do amigo
+const goToFriendBook = (bookId: string, friendId: string) => {
+  router.push(`/book/${bookId}/${friendId}`)
 }
 
 // Obter texto do status de leitura
@@ -806,7 +746,6 @@ onMounted(async () => {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
-/* Nova classe para aprimorar a visualização do card de amigos */
 .friend-card.enhanced {
   border: 1px solid rgba(var(--v-theme-primary), 0.2);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -824,6 +763,7 @@ onMounted(async () => {
   background-color: rgb(var(--v-theme-surface));
   border-radius: 16px;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .friend-book-card:hover {
@@ -854,6 +794,248 @@ onMounted(async () => {
   color: rgb(var(--v-theme-on-background));
 }
 
+/* CARDS MODERNOS */
+.modern-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-primary), 0.1);
+  transition: all 0.3s ease;
+}
+
+.modern-card:hover {
+  border-color: rgba(var(--v-theme-primary), 0.2);
+  box-shadow: 0 8px 24px rgba(var(--v-theme-primary), 0.12);
+}
+
+/* WRAPPER DOS ÍCONES */
+.icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.icon-wrapper.warning {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+}
+
+.icon-wrapper.info {
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+}
+
+/* GRID DE SOLICITAÇÕES */
+.requests-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .requests-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+}
+
+/* CARDS DE SOLICITAÇÃO */
+.request-card {
+  background: rgb(var(--v-theme-surface));
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(var(--v-theme-primary), 0.2);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.request-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--v-theme-primary), var(--v-theme-secondary));
+}
+
+.request-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  border-color: rgba(var(--v-theme-primary), 0.4);
+}
+
+.received-request {
+  border-color: rgba(255, 152, 0, 0.3);
+}
+
+.received-request::before {
+  background: linear-gradient(90deg, #ff9800, #f57c00);
+}
+
+.received-request:hover {
+  border-color: rgba(255, 152, 0, 0.5);
+}
+
+.sent-request {
+  border-color: rgba(33, 150, 243, 0.3);
+}
+
+.sent-request::before {
+  background: linear-gradient(90deg, #2196f3, #1976d2);
+}
+
+.sent-request:hover {
+  border-color: rgba(33, 150, 243, 0.5);
+}
+
+/* CONTEÚDO DA SOLICITAÇÃO */
+.request-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.user-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.user-avatar {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: rgb(var(--v-theme-on-surface));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-email {
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface));
+  margin: 0 0 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.request-time {
+  font-size: 0.75rem;
+  color: rgb(var(--v-theme-on-surface));
+  margin: 0;
+  opacity: 0.6;
+}
+
+/* AÇÕES */
+.request-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: none;
+  border-radius: 12px;
+  min-width: 80px;
+  height: 36px;
+}
+
+.accept-btn {
+  background: linear-gradient(135deg, #4caf50, #388e3c) !important;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.reject-btn,
+.cancel-btn {
+  border-width: 2px;
+  font-weight: 500;
+}
+
+.status-chip {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ESTADO VAZIO */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-icon {
+  margin-bottom: 16px;
+}
+
+.empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  margin: 0 0 8px 0;
+}
+
+.empty-subtitle {
+  font-size: 0.875rem;
+  color: rgb(var(--v-theme-on-surface-variant));
+  margin: 0;
+  opacity: 0.8;
+}
+
+/* RESPONSIVIDADE MOBILE */
+@media (max-width: 600px) {
+  .page-title {
+    font-size: 1.8rem;
+  }
+
+  .request-card {
+    padding: 16px;
+  }
+
+  .user-info {
+    gap: 10px;
+  }
+
+  .user-avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .request-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .empty-state {
+    padding: 24px 16px;
+  }
+
+  .icon-wrapper {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -862,12 +1044,6 @@ onMounted(async () => {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@media (max-width: 700px) {
-  .page-title {
-    font-size: 1.8rem;
   }
 }
 </style>
