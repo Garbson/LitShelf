@@ -189,10 +189,20 @@ const handleSignup = async () => {
     errorMessage.value = ''
     successMessage.value = ''
 
+    // Verificar se o email já está em uso antes de tentar criar a conta
+    const emailExists = await authStore.checkEmailExists(email.value)
+
+    if (emailExists) {
+      errorMessage.value =
+        'Este email já está cadastrado. Por favor, faça login ou use outro email.'
+      loading.value = false
+      return
+    }
+
     // Simular um pequeno delay para melhorar UX (opcional)
     await new Promise((resolve) => setTimeout(resolve, 600))
 
-    const result = await authStore.registerWithEmail(email.value, password.value)
+    const result = await authStore.registerWithEmail(email.value, password.value, name.value)
 
     if (result) {
       successMessage.value =
@@ -201,7 +211,14 @@ const handleSignup = async () => {
     }
   } catch (error: any) {
     console.error('Erro ao criar conta:', error)
-    errorMessage.value = error.message || 'Falha ao criar conta.'
+
+    // Tratar erros específicos do Supabase
+    if (error.message?.includes('User already registered')) {
+      errorMessage.value =
+        'Este email já está cadastrado. Por favor, faça login ou use outro email.'
+    } else {
+      errorMessage.value = error.message || 'Falha ao criar conta.'
+    }
   } finally {
     loading.value = false
   }
