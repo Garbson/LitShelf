@@ -1,11 +1,11 @@
 <template>
   <div class="friends-container fill-height">
-    <v-container fluid class="py-8">
+    <v-container fluid>
       <v-row>
         <v-col cols="12">
-          <h1 class="text-h3 font-weight-bold mb-6 text-center page-title">
-            <span>👥 Amigos & Conexões Literárias</span>
-          </h1>
+          <div class="text-h3 font-weight-bold mb-6 text-center">
+            <span class="page-title">👥 Amigos & Conexões Literárias</span>
+          </div>
 
           <p class="text-subtitle-1 text-center mb-8 theme-text">
             Conecte-se com outros leitores, descubra livros e compartilhe sua jornada literária
@@ -865,7 +865,7 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
   .page-title {
     font-size: 1.8rem;
   }

@@ -1,6 +1,6 @@
 import '@mdi/font/css/materialdesignicons.css'; // Ícones Material Design
-import { createVuetify } from 'vuetify'
-import { aliases, mdi } from 'vuetify/iconsets/mdi'
+import { createVuetify } from 'vuetify';
+import { aliases, mdi } from 'vuetify/iconsets/mdi';
 import 'vuetify/styles'; // Importa os estilos do Vuetify
 
 // Paleta de cores inspirada em livros e bibliotecas - versão sofisticada

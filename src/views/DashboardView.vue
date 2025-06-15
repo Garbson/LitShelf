@@ -1,10 +1,10 @@
 <template>
   <div class="bookshelf-container d-flex justify-center">
-    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="width: 90%">
+    <v-card elevation="0" class="card-container pa-4 rounded-xl" style="max-width: 90%">
       <!-- Título padronizado como nos outros componentes -->
-      <h1 class="text-h3 font-weight-bold mb-8 text-center bookshelf-title">
+      <div class="text-h3 font-weight-bold mb-8 text-center bookshelf-title">
         <span class="page-title">📊 Meu Dashboard</span>
-      </h1>
+      </div>
       <p class="mb-6 text-center">
         Bem-vindo ao seu painel. Aqui você pode acessar estatísticas e informações sobre sua
         leitura.
@@ -16,7 +16,7 @@
           <v-card class="mb-4 pa-4 dashboard-card" elevation="2">
             <v-card-title class="d-flex align-center">
               <v-icon icon="mdi-chart-bar" color="primary" class="me-2"></v-icon>
-              <span class="text-h6">Estatísticas de Leitura</span>
+              <span class="text-h6 card-title-responsive">Estatísticas de Leitura</span>
             </v-card-title>
             <v-card-text>
               <!-- Cards de estatísticas -->
@@ -77,7 +77,7 @@
           <v-card class="mb-4 pa-4 dashboard-card chart-card" elevation="2">
             <v-card-title class="d-flex align-center">
               <v-icon icon="mdi-chart-pie" color="primary" class="me-2"></v-icon>
-              <span class="text-h6">Distribuição por Gênero</span>
+              <span class="text-h6 card-title-responsive">Distribuição por Gênero</span>
             </v-card-title>
             <v-card-text>
               <div v-if="hasGenreData" class="chart-container">
@@ -104,7 +104,7 @@
           <v-card class="mb-4 pa-4 dashboard-card recommendation-card" elevation="2">
             <v-card-title class="d-flex align-center">
               <v-icon icon="mdi-lightbulb" color="primary" class="me-2"></v-icon>
-              <span class="text-h6">Recomendações Recentes</span>
+              <span class="text-h6 card-title-responsive">Recomendações Recentes</span>
             </v-card-title>
             <v-card-text v-if="recommendationStore.receivedRecommendations?.length > 0">
               <!-- Lista de recomendações com capas e estilo melhorado -->
@@ -164,9 +164,16 @@
                         size="small"
                         :color="getRecommendationChipColor(recommendation.status)"
                         text-color="white"
-                        class="ms-2"
+                        class="ms-2 status-chip-responsive"
                       >
-                        {{ getRecommendationStatusLabel(recommendation.status) }}
+                        <!-- Texto completo para desktop -->
+                        <span class="status-text-desktop">
+                          {{ getRecommendationStatusLabel(recommendation.status) }}
+                        </span>
+                        <!-- Apenas ícone para mobile -->
+                        <v-icon class="status-icon-mobile" size="default">
+                          {{ getRecommendationStatusIcon(recommendation.status) }}
+                        </v-icon>
                       </v-chip>
                     </div>
                   </v-card>
@@ -197,7 +204,7 @@
           <v-card class="mb-4 pa-4 dashboard-card" elevation="2">
             <v-card-title class="d-flex align-center">
               <v-icon icon="mdi-flag" color="primary" class="me-2"></v-icon>
-              <span class="text-h6">Meta Anual de Leitura</span>
+              <span class="text-h6 card-title-responsive">Meta Anual de Leitura</span>
             </v-card-title>
             <v-card-text>
               <div class="d-flex flex-column flex-md-row align-center">
@@ -277,7 +284,7 @@
     <v-dialog v-model="showRecommendationDialog" max-width="600">
       <v-card v-if="selectedRecommendation" elevation="8" class="recommendation-dialog">
         <v-card-item class="pa-0">
-          <!-- Cabeçalho com gradiente -->
+          <!-- Cabeçalho com cor primary -->
           <div class="recommendation-header pa-4">
             <v-btn
               icon="mdi-close"
@@ -308,7 +315,9 @@
         <v-card-text class="pa-4 pt-6">
           <div class="d-flex flex-column flex-md-row">
             <!-- Capa do livro com efeito de elevação e sombra -->
-            <div class="book-cover-container me-md-4 mb-4 mb-md-0">
+            <div
+              class="book-cover-container me-md-4 mb-4 mb-md-0 d-flex flex-column align-center align-md-start"
+            >
               <div class="book-cover-wrapper">
                 <v-img
                   :src="
@@ -324,12 +333,10 @@
                 ></v-img>
               </div>
 
-              <!-- Status badge -->
               <v-chip
                 :color="getRecommendationChipColor(selectedRecommendation.status)"
                 text-color="white"
-                size="small"
-                class="status-chip"
+                class="status-chip mt-2"
               >
                 {{ getRecommendationStatusLabel(selectedRecommendation.status) }}
               </v-chip>
@@ -575,7 +582,7 @@ watch(
   { deep: true },
 )
 
-// Cria o gráfico de distribuição de gêneros
+// Cria o gráfico de distribuição de gêneros com legenda responsiva
 const createGenreChart = () => {
   if (!genreChartRef.value || !hasGenreData.value) return
 
@@ -589,19 +596,71 @@ const createGenreChart = () => {
     const data = Object.values(genresData)
 
     const backgroundColors = [
-      'rgba(255, 99, 132, 0.7)',
-      'rgba(54, 162, 235, 0.7)',
-      'rgba(255, 206, 86, 0.7)',
-      'rgba(75, 192, 192, 0.7)',
-      'rgba(153, 102, 255, 0.7)',
-      'rgba(255, 159, 64, 0.7)',
-      'rgba(199, 199, 199, 0.7)',
-      'rgba(83, 102, 255, 0.7)',
-      'rgba(78, 205, 196, 0.7)',
-      'rgba(255, 99, 132, 0.7)',
+      'rgba(255, 99, 132, 0.8)',
+      'rgba(54, 162, 235, 0.8)',
+      'rgba(255, 206, 86, 0.8)',
+      'rgba(75, 192, 192, 0.8)',
+      'rgba(153, 102, 255, 0.8)',
+      'rgba(255, 159, 64, 0.8)',
+      'rgba(199, 199, 199, 0.8)',
+      'rgba(83, 102, 255, 0.8)',
+      'rgba(78, 205, 196, 0.8)',
+      'rgba(255, 107, 129, 0.8)',
+      'rgba(106, 90, 205, 0.8)',
+      'rgba(50, 205, 50, 0.8)',
     ]
 
-    const borderColors = backgroundColors.map((color) => color.replace('0.7', '1'))
+    const borderColors = backgroundColors.map((color) => color.replace('0.8', '1'))
+
+    // Detecta diferentes breakpoints
+    const screenWidth = window.innerWidth
+    const isMobile = screenWidth <= 600
+    const isTablet = screenWidth > 600 && screenWidth <= 960
+    const isDesktop = screenWidth > 960
+
+    // Configurações responsivas baseadas no tamanho da tela
+    let legendConfig = {}
+
+    if (isMobile) {
+      legendConfig = {
+        display: false, // Remove completamente a legenda em mobile
+      }
+    } else if (isTablet) {
+      legendConfig = {
+        position: 'right',
+        align: 'start',
+        labels: {
+          font: {
+            size: 12,
+            weight: '500',
+          },
+          padding: 12,
+          usePointStyle: true,
+          pointStyle: 'rect',
+          boxWidth: 15,
+          boxHeight: 15,
+          textAlign: 'left',
+        },
+        maxWidth: 200,
+      }
+    } else {
+      legendConfig = {
+        position: 'bottom',
+        align: 'center',
+        labels: {
+          font: {
+            size: 13,
+            weight: '500',
+          },
+          padding: 15,
+          usePointStyle: true,
+          pointStyle: 'rect',
+          boxWidth: 18,
+          boxHeight: 18,
+          textAlign: 'left',
+        },
+      }
+    }
 
     genreChart = new Chart(genreChartRef.value, {
       type: 'doughnut',
@@ -612,25 +671,42 @@ const createGenreChart = () => {
             data: data,
             backgroundColor: backgroundColors.slice(0, labels.length),
             borderColor: borderColors.slice(0, labels.length),
-            borderWidth: 1,
+            borderWidth: 2,
+            hoverBorderWidth: 3,
+            hoverBorderColor: '#ffffff',
+            cutout: isMobile ? '50%' : '60%', // Buraco menor em mobile
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'nearest',
+        },
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              font: {
-                size: 12,
-              },
-              padding: 20,
-            },
-          },
+          legend: legendConfig,
           tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            cornerRadius: 8,
+            displayColors: true,
+            padding: 12,
+            titleFont: {
+              size: 14,
+              weight: 'bold',
+            },
+            bodyFont: {
+              size: 13,
+            },
             callbacks: {
+              title: function (context) {
+                return context[0].label || ''
+              },
               label: function (context) {
                 const label = context.label || ''
                 const value = context.raw || 0
@@ -639,13 +715,45 @@ const createGenreChart = () => {
                   0,
                 )
                 const percentage = Math.round((Number(value) / Number(total)) * 100)
-                return `${label}: ${value} livro(s) (${percentage}%)`
+                return [
+                  `${label}`,
+                  `📚 ${value} livro${value !== 1 ? 's' : ''}`,
+                  `📊 ${percentage}% do total`,
+                ]
               },
             },
           },
         },
+        layout: {
+          padding: isMobile ? 5 : 20, // Menos padding em mobile já que não há legenda
+        },
+        elements: {
+          arc: {
+            borderWidth: 2,
+            hoverBorderWidth: 4,
+          },
+        },
+        animation: {
+          animateRotate: true,
+          animateScale: false,
+          duration: 1000,
+          easing: 'easeOutQuart',
+        },
       },
     })
+
+    // Listener para redimensionamento da janela
+    const handleResize = () => {
+      if (genreChart) {
+        genreChart.destroy()
+        setTimeout(() => createGenreChart(), 100)
+      }
+    }
+
+    // Remove listener anterior se existir
+    window.removeEventListener('resize', handleResize)
+    // Adiciona novo listener
+    window.addEventListener('resize', handleResize)
   } catch (error) {
     console.error('Erro ao criar gráfico de gêneros:', error)
     showNotification('Erro ao criar gráfico de gêneros', 'error')
@@ -728,7 +836,7 @@ const handleAcceptRecommendation = async (recommendation) => {
       showNotification('Livro adicionado à sua biblioteca com sucesso!', 'success')
 
       setTimeout(() => {
-        refreshDashboardData()
+        dashboardStore.fetchDashboardData()
       }, 500)
     } else {
       showNotification('Erro ao aceitar recomendação', 'error')
@@ -754,7 +862,7 @@ const handleRejectRecommendation = async (recommendation) => {
       showNotification('Recomendação recusada', 'info')
 
       setTimeout(() => {
-        refreshDashboardData()
+        dashboardStore.fetchDashboardData()
       }, 500)
     } else {
       showNotification('Erro ao recusar recomendação', 'error')
@@ -784,6 +892,20 @@ const getRecommendationChipColor = (status) => {
       return 'error'
     default:
       return 'grey'
+  }
+}
+
+// Retorna ícone do status de recomendação
+const getRecommendationStatusIcon = (status) => {
+  switch (status) {
+    case 'accepted':
+      return 'mdi-check'
+    case 'pending':
+      return 'mdi-clock-outline'
+    case 'rejected':
+      return 'mdi-close'
+    default:
+      return 'mdi-help'
   }
 }
 
@@ -880,10 +1002,21 @@ const truncateDescription = (description, maxLength) => {
   letter-spacing: -0.5px;
 }
 
+/* Estilos base para o container do gráfico */
 .chart-container {
   width: 100%;
-  height: 300px;
+  height: 350px;
   position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+/* Estilos para o canvas do gráfico */
+.chart-container canvas {
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .stat-card {
@@ -935,6 +1068,11 @@ const truncateDescription = (description, maxLength) => {
   border-radius: 12px;
 }
 
+.recommendation-header {
+  background: rgb(var(--v-theme-primary));
+  position: relative;
+}
+
 .gradient-success {
   background: linear-gradient(45deg, #4caf50, #81c784);
 }
@@ -967,7 +1105,8 @@ const truncateDescription = (description, maxLength) => {
 }
 
 .recommendation-message {
-  border: 1px solid white;
+  background-color: rgba(var(--v-theme-surface), 0.8);
+  border-left: 4px solid rgb(var(--v-theme-primary));
 }
 
 .quote-icon {
@@ -978,15 +1117,206 @@ const truncateDescription = (description, maxLength) => {
   padding-left: 16px;
 }
 
+/* Responsividade do chip de status */
+.status-chip-responsive .status-text-desktop {
+  display: inline;
+}
+
+.status-chip-responsive .status-icon-mobile {
+  display: none;
+}
+
+/* Títulos responsivos dos cards */
+.card-title-responsive {
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+/* Estilo base para o thumbnail do livro */
+.book-thumbnail {
+  width: 60px;
+  min-width: 60px;
+}
+
+/* Responsividade para tablets */
+@media (max-width: 960px) and (min-width: 601px) {
+  .chart-container {
+    height: 320px;
+    padding: 12px;
+  }
+
+  /* Ajuste do card do gráfico em tablets */
+  .chart-card {
+    min-height: 380px !important;
+  }
+
+  /* Garante que o gráfico não fique muito pequeno */
+  .chart-container canvas {
+    min-height: 250px;
+  }
+}
+
+/* Responsividade para mobile */
 @media (max-width: 600px) {
+  .chart-container {
+    height: 260px !important; /* Menor altura já que não tem legenda */
+    padding: 8px;
+  }
+
+  /* Ajuste do card do gráfico em mobile */
+  .chart-card {
+    min-height: 330px !important; /* Menor altura total */
+  }
+
+  /* Container do gráfico em mobile */
+  .chart-container canvas {
+    min-height: 200px;
+  }
+
+  /* Ajuste no título do card em mobile */
+  .chart-card .v-card-title {
+    padding: 12px 16px 8px 16px;
+  }
+
+  /* Ajuste no conteúdo do card em mobile */
+  .chart-card .v-card-text {
+    padding: 8px 16px 16px 16px;
+  }
+}
+
+/* Responsividade para telas muito pequenas */
+@media (max-width: 480px) {
+  .chart-container {
+    height: 230px !important; /* Ainda menor para telas muito pequenas */
+    padding: 4px;
+  }
+
+  .chart-card {
+    min-height: 300px !important; /* Menor altura total */
+  }
+
+  /* Reduz ainda mais o padding em telas pequenas */
+  .chart-card .v-card-title {
+    padding: 8px 12px 4px 12px;
+    font-size: 1rem !important;
+  }
+
+  .chart-card .v-card-text {
+    padding: 4px 12px 12px 12px;
+  }
+}
+
+/* Estilos para telas grandes (desktop) */
+@media (min-width: 1200px) {
+  .chart-container {
+    height: 400px;
+    padding: 20px;
+  }
+
+  .chart-card {
+    min-height: 450px !important;
+  }
+}
+
+/* Animações suaves para transições */
+.chart-container,
+.chart-card {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Ajustes específicos para o card de gráfico */
+.chart-card .v-card-title .v-icon {
+  margin-right: 8px;
+}
+
+/* Estado de loading/vazio */
+.chart-container .text-center {
+  padding: 2rem 1rem;
+}
+
+.chart-container .text-center .v-icon {
+  opacity: 0.6;
+  margin-bottom: 1rem;
+}
+
+/* Ajustes para mobile */
+@media (max-width: 700px) {
   .page-title {
     font-size: 1.8rem;
   }
 
+  .card-container {
+    max-width: 100% !important;
+  }
+
   .current-book-card,
-  .chart-card,
   .recommendation-card {
     min-height: 300px;
+  }
+
+  /* Centralização no mobile para o container da capa */
+  .book-cover-container {
+    align-items: center !important;
+    text-align: center;
+  }
+
+  /* Títulos dos cards quebram em mobile */
+  .card-title-responsive {
+    font-size: 1rem !important;
+    white-space: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  /* Chip de status - apenas ícone em mobile */
+  .status-chip-responsive .status-text-desktop {
+    display: none;
+  }
+
+  .status-chip-responsive .status-icon-mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .status-chip-responsive {
+    min-width: 36px !important;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    justify-content: center;
+    align-items: center;
+    display: flex !important;
+  }
+
+  .status-chip-responsive .v-icon {
+    font-size: 18px !important;
+  }
+
+  /* Card de recomendações em mobile */
+  .recommendation-card .book-thumbnail {
+    width: 50px;
+    min-width: 50px;
+    height: 70px !important;
+  }
+
+  .recommendation-card .recommendation-preview .d-flex {
+    align-items: flex-start !important;
+  }
+
+  .recommendation-card .recommendation-preview .text-subtitle-1 {
+    font-size: 0.875rem !important;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+
+  .recommendation-card .recommendation-preview .text-body-2 {
+    font-size: 0.75rem !important;
+    margin-bottom: 4px;
+  }
+
+  .recommendation-card .recommendation-preview .text-caption {
+    font-size: 0.7rem !important;
   }
 }
 </style>
