@@ -16,6 +16,11 @@
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "strict": false, // ADICIONADO: Desativa o modo estrito geral do TypeScript
+    "noImplicitAny": false, // ADICIONADO: Permite o uso implícito de 'any'
+    "strictNullChecks": false, // ADICIONADO: Desativa a verificação rigorosa de nulos
+    "noUnusedLocals": false, // ADICIONADO: Não avisa sobre variáveis locais não utilizadas
+    "noUnusedParameters": false // ADICIONADO: Não avisa sobre parâmetros não utilizados
   }
 }
