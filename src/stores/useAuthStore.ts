@@ -14,10 +14,14 @@ export const useAuthStore = defineStore('auth', () => {
   // Login com Google
   const loginWithGoogle = async () => {
     loading.value = true
-    const { data, error } = await supabase.auth.signInWithOAuth({
+
+    // Detectar se estamos em produção ou desenvolvimento
+    const baseUrl = window.location.origin // Pega a URL atual automaticamente
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/bookshelf`,
+        redirectTo: `${baseUrl}/dashboard`, // ou a rota que você quer redirecionar após login
       },
     })
 
@@ -26,8 +30,6 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = false
       return false
     }
-
-    // O redirecionamento será feito automaticamente pelo Supabase
     return true
   }
 
