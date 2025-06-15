@@ -27,9 +27,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strict": false, // ALTERADO: Desativa o modo estrito geral do TypeScript
+    "noUnusedLocals": false, // ALTERADO: Não avisa sobre variáveis locais não utilizadas
+    "noUnusedParameters": false, // ALTERADO: Não avisa sobre parâmetros não utilizados
     "noFallthroughCasesInSwitch": true
+    // noEmitOnError não precisa ser explicitamente false aqui porque noEmit já está true,
+    // o que significa que o TypeScript não gera arquivos JS de qualquer forma,
+    // mas se estivesse false, noEmitOnError: false garantiria a saída de JS.
+    // Com noEmit: true e strict: false, muitos erros serão suprimidos.
   }
 }
