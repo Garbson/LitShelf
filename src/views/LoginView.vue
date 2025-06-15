@@ -206,13 +206,15 @@ const loginWithGoogle = async () => {
     googleLoading.value = true
     errorMessage.value = ''
 
-    // Por enquanto, apenas mostrar mensagem que não está implementado
-    errorMessage.value = 'Login com Google será implementado em breve.'
+    const result = await authStore.loginWithGoogle()
 
-    // router.push('/bookshelf')
+    if (!result) {
+      errorMessage.value = 'Erro ao fazer login com Google. Por favor, tente novamente.'
+    }
+    // O redirecionamento será tratado automaticamente pelo Supabase OAuth
   } catch (error: any) {
     console.error('Erro ao fazer login com Google:', error)
-    errorMessage.value = 'Erro ao fazer login com Google.'
+    errorMessage.value = 'Erro ao fazer login com Google. Por favor, tente novamente.'
   } finally {
     googleLoading.value = false
   }
