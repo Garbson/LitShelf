@@ -647,7 +647,8 @@ const removeFriendConfirmed = async () => {
 
 // Ver estante do amigo
 const viewFriendBookshelf = (friend: any) => {
-  router.push(`/bookshelf/${friend.id}`)
+  // Redirecionar para a página BookshelfView com o ID do amigo como parâmetro
+  router.push(`/bookshelf?friendId=${friend.id}`)
 }
 
 // Ir para detalhes do livro do amigo
