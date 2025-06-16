@@ -255,7 +255,7 @@
                         variant="outlined"
                         color="error"
                         size="small"
-                        class="action-btn cancel-btn"
+                        class="action-btn cancel-btn rounded-xl"
                         @click="cancelFriendRequest(request.id)"
                       >
                         <v-icon size="16" class="mr-1">mdi-close</v-icon>
@@ -830,11 +830,22 @@ onMounted(async () => {
   display: grid;
   gap: 16px;
   grid-template-columns: 1fr;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
   .requests-grid {
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 1200px) {
+  .requests-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
   }
 }
 
@@ -848,6 +859,9 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .request-card::before {
@@ -911,6 +925,8 @@ onMounted(async () => {
 .user-details {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .user-name {
