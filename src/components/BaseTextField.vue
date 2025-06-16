@@ -9,7 +9,6 @@
     :rules="rules"
     :outlined="outlined"
     :rounded="rounded"
-    :dense="dense"
     class="base-text-field"
   />
 </template>

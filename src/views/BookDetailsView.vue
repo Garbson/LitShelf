@@ -94,6 +94,7 @@
               <v-btn
                 :to="friendId ? { path: '/bookshelf', query: { friendId } } : '/bookshelf'"
                 prepend-icon="mdi-bookshelf"
+                class="mt-md-0 mt-2"
                 variant="outlined"
               >
                 Voltar para Estante
@@ -248,25 +249,24 @@
               </h3>
 
               <!-- Barra de pesquisa de frases e botão para adicionar nova frase -->
-              <div v-if="!friendId" class="d-flex align-center mb-4">
+              <div v-if="!friendId" class="d-flex flex-column flex-md-row align-center mb-4">
                 <BaseTextField
                   v-model="quoteSearchQuery"
                   label="Pesquisar frases"
-                  density="comfortable"
+                  density="compact"
                   prepend-inner-icon="mdi-magnify"
                   clearable
-                  class="flex-grow-1"
+                  hide-details="auto"
+                  class="flex-grow-1 w-100 mb-4 mb-md-0"
                 />
-
                 <v-btn
-                  class="ml-2 mb-4"
                   color="primary"
-                  icon
-                  variant="elevated"
+                  density="default"
                   @click="showQuoteDialog = true"
+                  :height="40"
+                  class="w-100 w-md-auto ml-md-2"
                 >
-                  <v-icon>mdi-plus</v-icon>
-                  <v-tooltip activator="parent" location="top">Adicionar frase</v-tooltip>
+                  <span>Adicionar Frase<v-icon end>mdi-plus</v-icon></span>
                 </v-btn>
               </div>
 
@@ -487,7 +487,7 @@ import BookRecommendationDialog from '@/components/BookRecommendationDialog.vue'
 import { useBookshelfStore } from '@/stores/useBookshelfStore'
 import { useFriendsStore } from '@/stores/useFriendsStore'
 import { supabase } from '@/supabase'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -637,7 +637,6 @@ onMounted(async () => {
   // Verifica se estamos visualizando um livro de um amigo
   if (friendIdFromQuery) {
     try {
-
       // Busca informações do amigo
       // Verificar se já temos os amigos carregados, se não, carregar
       if (friendsStore.friends.length === 0) {
@@ -864,38 +863,36 @@ const updateReadingStatus = async (newStatus: number) => {
   }
 }
 
-
 const updateBookDates = async () => {
   // Não faz nada se não houver livro selecionado ou se for a estante de um amigo
-  if (!selectedBook.value || friendId.value) return;
+  if (!selectedBook.value || friendId.value) return
 
   try {
-    const bookId = selectedBook.value.id;
+    const bookId = selectedBook.value.id
 
     // Converte as datas do formato de exibição (DD/MM/YYYY) para o formato que o banco precisa
     const startDate = selectedBook.value.dataInicioLeitura
       ? parseFormattedDate(selectedBook.value.dataInicioLeitura)
-      : null;
+      : null
     const endDate = selectedBook.value.dataFinalLeitura
       ? parseFormattedDate(selectedBook.value.dataFinalLeitura)
-      : null;
+      : null
 
     // Prepara o objeto SOMENTE com as colunas de data que serão atualizadas
     const updateData = {
       started_reading_at: startDate ? startDate.toISOString() : null,
       finished_reading_at: endDate ? endDate.toISOString() : null,
-    };
+    }
 
     // USA A FUNÇÃO CORRETA E GENÉRICA DA STORE (a mesma do update de status)
-    await bookshelfStore.updateBook(bookId, updateData);
+    await bookshelfStore.updateBook(bookId, updateData)
 
-    showNotification('Datas de leitura atualizadas!', 'success');
-    
+    showNotification('Datas de leitura atualizadas!', 'success')
   } catch (err: any) {
-    console.error('Erro ao atualizar datas:', err);
-    showNotification('Erro ao atualizar datas', 'error');
+    console.error('Erro ao atualizar datas:', err)
+    showNotification('Erro ao atualizar datas', 'error')
   }
-};
+}
 
 // Função genérica para mostrar notificações
 const showNotification = (text: string, color: string = 'success') => {
@@ -934,8 +931,6 @@ const addQuote = async () => {
 
 // Adicionar uma nova frase a partir do diálogo
 const addQuoteFromDialog = async () => {
-
-
   if (!selectedBook.value) {
     console.error('Erro: selectedBook é null ou undefined')
     showNotification('Erro: Livro não encontrado', 'error')
@@ -1267,6 +1262,10 @@ const getPaginationIndex = (index: number) => {
 @media (max-width: 768px) {
   .card-title {
     font-size: 1.8rem !important;
+  }
+
+  .card-container {
+    width: 100% !important;
   }
 
   .page-title {
